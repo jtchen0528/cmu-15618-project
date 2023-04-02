@@ -114,6 +114,22 @@ def test_pi_loop_concurrent():
     pi = step * the_sum
     return pi
 
+import numpy as np
+from joblib import Parallel, delayed
+def calculate_sum(j, num_steps, step):
+    c = step
+    x = ((j-1) - 0.5) * step
+    return 4.0 / (1.0 + x * x)
+
+def test_pi_loop_joblib(n_jobs = 16):
+    num_steps = 100000
+    step = 1.0 / num_steps
+
+    # Calculate the sum using joblib parallel computing
+    the_sum = sum(Parallel(n_jobs=n_jobs)(delayed(calculate_sum)(j, num_steps, step) for j in range(num_steps)))
+
+    pi = step * the_sum
+    return pi
 
 start_time = time.time()
 res = test_pi_loop()
@@ -127,3 +143,6 @@ print(f'"--- Thread --- \n res = {res} \n runtime: {time.time() - start_time} se
 start_time = time.time()
 res = test_pi_loop_concurrent()
 print(f'"--- Concurrent --- \n res = {res} \n runtime: {time.time() - start_time} seconds \n"')
+start_time = time.time()
+res = test_pi_loop_joblib()
+print(f'"--- joblib --- \n res = {res} \n runtime: {time.time() - start_time} seconds \n"')
