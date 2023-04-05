@@ -1,3 +1,11 @@
+# Apply DBSCAN on PCA-reduced MNIST
+
+# Conda Environment
+# conda create -n tf tensorflow
+# conda activate tf
+# conda install -c conda-forge scikit-learn
+# conda install -c conda-forge matplotlib
+
 from keras.datasets import mnist
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
