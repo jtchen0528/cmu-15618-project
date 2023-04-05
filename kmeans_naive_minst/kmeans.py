@@ -38,24 +38,20 @@ def print_label_data(result):
         print("cluster number: {} \n".format(data[0]))
     print("Last centroids position: \n {}".format(result[1]))
 
-def create_centroids(X, n_clusters):
-    centroids = []
-    centroids.append([5.0, 0.0])
-    centroids.append([45.0, 70.0])
-    centroids.append([50.0, 90.0])
+def create_centroids(X, n_clusters, seed):
+    # centroids = []
+    # centroids.append([5.0, 0.0])
+    # centroids.append([45.0, 70.0])
+    # centroids.append([50.0, 90.0])
     n_samples = X.shape[0]
 
-    if init_size is not None and init_size < n_samples:
-        init_indices = random_state.randint(0, n_samples, init_size)
-        X = X[init_indices]
-        x_squared_norms = x_squared_norms[init_indices]
-        n_samples = X.shape[0]
+    random_state = np.random.RandomState(seed)
+    indices = random_state.permutation(n_samples)[:n_clusters]
+    centers = X[indices]
 
-    return np.array(centroids)
+    return np.array(centers)
 
 if __name__ == "__main__":
-    filename = os.path.dirname(__file__) + "/data.csv"
-    data_points = np.genfromtxt(filename, delimiter=",")
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     # preprocessing the images
@@ -68,9 +64,11 @@ if __name__ == "__main__":
 
     print(X.shape)
 
-    centroids = create_centroids()
-    total_iteration = 100
+    centroids = create_centroids(X, 10, 15618)
+    print(centroids)
+    print(len(centroids))
+    # total_iteration = 100
     
-    [cluster_label, new_centroids] = iterate_k_means(data_points, centroids, total_iteration)
-    print_label_data([cluster_label, new_centroids])
-    print()
+    # [cluster_label, new_centroids] = iterate_k_means(data_points, centroids, total_iteration)
+    # print_label_data([cluster_label, new_centroids])
+    # print()
