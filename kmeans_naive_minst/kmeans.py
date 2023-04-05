@@ -39,10 +39,6 @@ def print_label_data(result):
     print("Last centroids position: \n {}".format(result[1]))
 
 def create_centroids(X, n_clusters, seed):
-    # centroids = []
-    # centroids.append([5.0, 0.0])
-    # centroids.append([45.0, 70.0])
-    # centroids.append([50.0, 90.0])
     n_samples = X.shape[0]
 
     random_state = np.random.RandomState(seed)
@@ -65,10 +61,10 @@ if __name__ == "__main__":
     print(X.shape)
 
     centroids = create_centroids(X, 10, 15618)
-    print(centroids)
-    print(len(centroids))
-    # total_iteration = 100
+
+    total_iteration = 10
     
-    # [cluster_label, new_centroids] = iterate_k_means(data_points, centroids, total_iteration)
-    # print_label_data([cluster_label, new_centroids])
-    # print()
+    [cluster_label, new_centroids] = iterate_k_means(X, centroids, total_iteration)
+    
+    print_label_data([cluster_label, new_centroids])
+    print()
