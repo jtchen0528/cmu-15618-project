@@ -1,3 +1,5 @@
+# ref: https://github.com/sharmaroshan/MNIST-Using-K-means/blob/master/KMeans%20Clustering%20for%20Imagery%20Analysis%20(Jupyter%20Notebook).ipynb
+
 import sys
 import sklearn
 import matplotlib.pyplot as plt
