@@ -4,7 +4,7 @@ import math
 import matplotlib.pyplot as plt
 import os
 
-def infer_cluster_labels(kmeans, actual_labels):
+def infer_cluster_labels(n_clusters, cluster_label, actual_labels):
     """
     Associates most probable label with each cluster in KMeans model
     returns: dictionary of clusters assigned to each label
@@ -12,11 +12,11 @@ def infer_cluster_labels(kmeans, actual_labels):
 
     inferred_labels = {}
 
-    for i in range(kmeans.n_clusters):
+    for i in range(n_clusters):
 
         # find index of points in cluster
         labels = []
-        index = np.where(kmeans.labels_ == i)
+        index = np.where(cluster_label == i)
 
         # append actual labels for each point in cluster
         labels.append(actual_labels[index])
@@ -56,18 +56,16 @@ def infer_data_labels(X_labels, cluster_labels):
                 
     return predicted_labels
 
-def calculate_metrics(estimator, data, labels):
+def calculate_metrics(n_clusters, cluster_labels, labels):
 
     # Calculate and print metrics
-    print('Number of Clusters: {}'.format(estimator.n_clusters))
-    print('Inertia: {}'.format(estimator.inertia_))
-    print('Homogeneity: {}'.format(metrics.homogeneity_score(labels, estimator.labels_)))
+    print('Number of Clusters: {}'.format(n_clusters))
+    print('Homogeneity: {}'.format(metrics.homogeneity_score(labels, cluster_labels)))
 
-def plot_centroids(estimator, n_clusters, Y, output_dir):
+def plot_centroids(centroids, cluster_label, n_clusters, Y, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
     # record centroid values
-    centroids = estimator.cluster_centers_
 
     # reshape centroids into images
     images = centroids.reshape(n_clusters, 28, 28)
@@ -75,7 +73,7 @@ def plot_centroids(estimator, n_clusters, Y, output_dir):
     images = images.astype(np.uint8)
 
     # determine cluster labels
-    cluster_labels = infer_cluster_labels(estimator, Y)
+    cluster_labels = infer_cluster_labels(n_clusters, cluster_label, Y)
 
     edge = int(math.sqrt(n_clusters))
 

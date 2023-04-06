@@ -11,8 +11,6 @@ from sklearn import metrics
 import os
 import math
 
-os.makedirs("imgs", exist_ok=True)
-
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 print('Training Data: {}'.format(x_train.shape))
@@ -45,34 +43,4 @@ for n_clusters in clusters:
     # calculate and print accuracy
     print('Accuracy: {}\n'.format(metrics.accuracy_score(Y, predicted_Y)))
 
-    # record centroid values
-    centroids = estimator.cluster_centers_
-
-    # reshape centroids into images
-    images = centroids.reshape(n_clusters, 28, 28)
-    images *= 255
-    images = images.astype(np.uint8)
-
-    # determine cluster labels
-    cluster_labels = helpers.infer_cluster_labels(estimator, Y)
-
-    edge = int(math.sqrt(n_clusters))
-
-    # create figure with subplots using matplotlib.pyplot
-    fig, axs = plt.subplots(edge, edge, figsize = (20, 20))
-    plt.gray()
-
-    # loop through subplots and add centroid images
-    for i, ax in enumerate(axs.flat):
-        
-        # determine inferred label using cluster_labels dictionary
-        for key, value in cluster_labels.items():
-            if i in value:
-                ax.set_title('Inferred Label: {}'.format(key))
-        
-        # add image to subplot
-        ax.matshow(images[i])
-        ax.axis('off')
-        
-    # display the figure
-    fig.savefig(f'imgs/c{n_clusters}.png')
+    helpers.plot_centroids(estimator, n_clusters, Y, "imgs")

@@ -1,6 +1,9 @@
+#%%
 import numpy as np
 import os
 from keras.datasets import mnist
+import helper
+from sklearn import metrics
 
 def compute_euclidean_distance(point, centroid):
     return np.sqrt(np.sum((point - centroid)**2))
@@ -27,9 +30,9 @@ def iterate_k_means(data_points, centroids, total_iteration):
             centroids[label[0]] = compute_new_centroids(label[1], centroids[label[0]])
 
             if iteration == (total_iteration - 1):
-                cluster_label.append(label)
+                cluster_label.append(label[0])
 
-    return [cluster_label, centroids]
+    return [np.array(cluster_label), centroids]
 
 def print_label_data(result):
     print("Result of k-Means Clustering: \n")
@@ -46,25 +49,34 @@ def create_centroids(X, n_clusters, seed):
     centers = X[indices]
 
     return np.array(centers)
+#%%
 
-if __name__ == "__main__":
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+# preprocessing the images
+# convert each image to 1 dimensional array
+X = x_train.reshape(len(x_train),-1)
+Y = y_train
+#%%
+#%%
+# normalize the data to 0 - 1
+X = X.astype(float) / 255.
 
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    # preprocessing the images
-    # convert each image to 1 dimensional array
-    X = x_train.reshape(len(x_train),-1)
-    Y = y_train
+n_clusters = 10
 
-    # normalize the data to 0 - 1
-    X = X.astype(float) / 255.
+centroids = create_centroids(X, n_clusters, 15618)
 
-    print(X.shape)
+total_iteration = 10
 
-    centroids = create_centroids(X, 10, 15618)
+[cluster_label, new_centroids] = iterate_k_means(X, centroids, total_iteration)
 
-    total_iteration = 10
-    
-    [cluster_label, new_centroids] = iterate_k_means(X, centroids, total_iteration)
-    
-    print_label_data([cluster_label, new_centroids])
-    print()
+inferred_labels = helper.infer_cluster_labels(n_clusters, cluster_label, Y)
+predicted_Y = helper.infer_data_labels(cluster_label, inferred_labels)
+#%%
+print('Homogeneity: {}'.format(metrics.homogeneity_score(Y, cluster_label)))
+#%%
+print('Accuracy: {}\n'.format(metrics.accuracy_score(Y, predicted_Y)))
+#%%
+helper.plot_centroids(centroids, cluster_label, n_clusters, Y, "imgs")
+print()
+
+# %%
