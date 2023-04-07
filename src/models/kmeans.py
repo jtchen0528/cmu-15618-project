@@ -139,11 +139,11 @@ class KMeans:
         inferred_labels = self.infer_cluster_labels(X, Y)
         predicted_Y_train = self.infer_data_labels(classification, inferred_labels)
 
-        print('Homogeneity: {}'.format(metrics.homogeneity_score(Y, classification)))
+        print('Homogeneity: {}\n'.format(metrics.homogeneity_score(Y, classification)))
         print('Accuracy: {}\n'.format(metrics.accuracy_score(Y, predicted_Y_train)))
 
         with open(os.path.join(output_dir, "accuracy.txt"), "w") as f:
-            f.write('Homogeneity: {}'.format(metrics.homogeneity_score(Y, classification)))
+            f.write('Homogeneity: {}\n'.format(metrics.homogeneity_score(Y, classification)))
             f.write('Accuracy: {}\n'.format(metrics.accuracy_score(Y, predicted_Y_train)))
 
     def write_time_log(self, output_dir):
