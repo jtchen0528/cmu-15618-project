@@ -13,7 +13,7 @@ def euclidean(point, data):
     return np.sqrt(np.sum((point - data)**2, axis=1))
 
 
-class KMeans:
+class KMeans_serial:
     def __init__(self, n_clusters=8, max_iter=300):
         self.n_clusters = n_clusters
         self.max_iter = max_iter
@@ -95,16 +95,14 @@ class KMeans:
         fig.savefig(f'{output_dir}/centroids.png')
 
 
-    def infer_cluster_labels(self, X, Y):
-
-        centroids, centroid_idxs = self.evaluate(X)
+    def infer_cluster_labels(self, classification, Y):
 
         inferred_labels = {}
 
         for i in range(self.n_clusters):
 
             labels = []
-            index = np.where(centroid_idxs == i)
+            index = np.where(classification == i)
 
             labels.append(Y[index])
 
@@ -136,10 +134,10 @@ class KMeans:
         print("[RESULT]")
         class_centers, classification = self.evaluate(X)
 
-        inferred_labels = self.infer_cluster_labels(X, Y)
+        inferred_labels = self.infer_cluster_labels(classification, Y)
         predicted_Y_train = self.infer_data_labels(classification, inferred_labels)
 
-        print('Homogeneity: {}\n'.format(metrics.homogeneity_score(Y, classification)))
+        print('Homogeneity: {}'.format(metrics.homogeneity_score(Y, classification)))
         print('Accuracy: {}\n'.format(metrics.accuracy_score(Y, predicted_Y_train)))
 
         with open(os.path.join(output_dir, "accuracy.txt"), "w") as f:
