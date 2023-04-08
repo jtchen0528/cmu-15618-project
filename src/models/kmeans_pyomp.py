@@ -7,7 +7,6 @@ import random
 import os
 import math
 from sklearn import metrics
-from tqdm import tqdm
 import time
 import json
 import seaborn as sns
