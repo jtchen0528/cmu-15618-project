@@ -7,7 +7,6 @@ import random
 import os
 import math
 from sklearn import metrics
-from tqdm import tqdm
 import time
 import json
 import seaborn as sns
@@ -39,27 +38,34 @@ class KMeans_serial:
             self.centroids += [X_train[new_centroid_idx]]
         self.log_time("centroid_init", start_time)
 
+        self.centroids = np.array(self.centroids)
+        prev_centroids = np.array(prev_centroids)
+
         start_time = time.time()
         print("[TRAIN] Start training")
         iteration = 0
         while np.not_equal(self.centroids, prev_centroids).any() and iteration < self.max_iter:
+
+            prev_centroids = np.copy(self.centroids)
+
             iter_start_time = time.time()
-            sorted_points = [[] for _ in range(self.n_clusters)]
-            batch_bar = tqdm(total=len(X_train), dynamic_ncols=True, leave=False, position=0, desc=f'Iter: {iteration}', ncols=5) 
+
+            sorted_points = np.zeros(len(X_train))
+                        
             iter_data_start_time = time.time()
-            for x in X_train:
-                dists = euclidean(x, self.centroids)
+            for i in range(len(X_train)):
+                dists = euclidean(X_train[i], self.centroids)
                 centroid_idx = np.argmin(dists)
-                sorted_points[centroid_idx].append(x)
-                batch_bar.update()
-            batch_bar.close()
+                sorted_points[i] = centroid_idx
             self.log_time(f'iter_data_{iteration}', iter_data_start_time)
 
-            prev_centroids = self.centroids
-            self.centroids = [np.mean(cluster, axis=0) for cluster in sorted_points]
-            for i, centroid in enumerate(self.centroids):
-                if np.isnan(centroid).any():
-                    self.centroids[i] = prev_centroids[i]
+            for i in range(self.n_clusters):
+                cluster_datapoints_indices = np.where(sorted_points == i)[0]
+                cluster_datapoints = np.take(X_train, cluster_datapoints_indices, axis=0)
+                if (len(cluster_datapoints) > 0):
+                    new_centroid = np.mean(cluster_datapoints, axis=0)
+                    self.centroids[i] = new_centroid
+
             iteration += 1
             self.log_time(f'iter_{iteration}', iter_start_time)
 
