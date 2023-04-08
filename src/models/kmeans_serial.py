@@ -1,3 +1,5 @@
+# ref: https://github.com/turnerluke/ML-algos/blob/main/k_means/k_means.py
+
 import numpy as np
 import matplotlib.pyplot as plt
 import random
@@ -8,6 +10,7 @@ from sklearn import metrics
 from tqdm import tqdm
 import time
 import json
+import seaborn as sns
 
 def euclidean(point, data):
     return np.sqrt(np.sum((point - data)**2, axis=1))
@@ -94,6 +97,28 @@ class KMeans_serial:
             
         fig.savefig(f'{output_dir}/centroids.png')
 
+
+    def plot_2d_centroids(self, output_dir, X_train, Y_train):
+        print("[PLOT] Start plotting centroid")
+
+        os.makedirs(output_dir, exist_ok=True)
+        class_centers, classification = self.evaluate(X_train)
+
+        sns.scatterplot(x=[X[0] for X in X_train],
+                y=[X[1] for X in X_train],
+                hue=Y_train,
+                style=classification,
+                palette="deep",
+                legend=None
+                )
+        plt.plot([x[0] for x in self.centroids],
+                [y[1] for y in self.centroids],
+                '+',
+                markersize=10,
+                )
+        plt.title("Centroids and Test data")
+            
+        plt.savefig(f'{output_dir}/centroids.png')
 
     def infer_cluster_labels(self, classification, Y):
 

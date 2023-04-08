@@ -5,51 +5,88 @@ import random
 import os
 import math
 from sklearn import metrics
-from sklearn.cluster import KMeans
 from tqdm import tqdm
 import time
 import json
-import seaborn as sns
 
+from numba import njit
+from numba.openmp import openmp_context as openmp
+from numba.openmp import omp_set_num_threads, omp_get_thread_num, omp_get_num_threads, omp_get_wtime
+
+@njit
 def euclidean(point, data):
     return np.sqrt(np.sum((point - data)**2, axis=1))
 
 
-class KMeans_sklearn:
-    def __init__(self, n_clusters=8, max_iter=300):
+class KMeans_pyomp:
+    def __init__(self, n_clusters=8, max_iter=300, n_threads = 1):
         self.n_clusters = n_clusters
         self.max_iter = max_iter
         self.time_log = {}
-        self.model = KMeans(n_clusters = n_clusters)
-        print(f'Kmeans_sklearn, [{self.n_clusters}] clusters, [{self.max_iter}] iterations, Loaded.')
+        self.n_threads = n_threads
+        print(f'Kmeans, [{self.n_clusters}] clusters, [{self.max_iter}] iterations, Loaded.')
 
     def log_time(self, entry_name, start_time):
         self.time_log[entry_name] = time.time() - start_time
 
+    @njit
     def fit(self, X_train):
         start_time = time.time()
+
+        omp_set_num_threads(self.n_threads)
+        print("[TRAIN] Centroids initialization")
+        self.centroids = [random.choice(X_train)]
+        prev_centroids = [random.choice(X_train)]
+
+        for _ in range(self.n_clusters-1):
+            dists = np.sum([euclidean(centroid, X_train) for centroid in self.centroids], axis=0)
+            dists /= np.sum(dists)
+            new_centroid_idx = np.random.choice(range(len(X_train)), size=1, p=dists)[0]
+            self.centroids += [X_train[new_centroid_idx]]
+        self.log_time("centroid_init", start_time)
+
+        start_time = time.time()
         print("[TRAIN] Start training")
-        self.model.fit(X_train)
+        iteration = 0
+        while np.not_equal(self.centroids, prev_centroids).any() and iteration < self.max_iter:
+            iter_start_time = time.time()
+            sorted_points = [[] for _ in range(self.n_clusters)]
+            iter_data_start_time = time.time()
+            for x in X_train:
+                dists = euclidean(x, self.centroids)
+                centroid_idx = np.argmin(dists)
+                sorted_points[centroid_idx].append(x)
+
+            self.log_time(f'iter_data_{iteration}', iter_data_start_time)
+
+            prev_centroids = self.centroids
+            self.centroids = [np.mean(cluster, axis=0) for cluster in sorted_points]
+            for i, centroid in enumerate(self.centroids):
+                if np.isnan(centroid).any():
+                    self.centroids[i] = prev_centroids[i]
+            iteration += 1
+            self.log_time(f'iter_{iteration}', iter_start_time)
+
         self.log_time("total", start_time)
+
 
     def evaluate(self, X):
         centroids = []
         centroid_idxs = []
         for x in X:
-            dists = euclidean(x, self.model.cluster_centers_.tolist())
+            dists = euclidean(x, self.centroids)
             centroid_idx = np.argmin(dists)
-            centroids.append(self.model.cluster_centers_[centroid_idx])
+            centroids.append(self.centroids[centroid_idx])
             centroid_idxs.append(centroid_idx)
 
         return np.array(centroids), np.array(centroid_idxs)
-
-
+    
     def plot_centroids(self, output_dir):
         print("[PLOT] Start plotting centroid")
 
         os.makedirs(output_dir, exist_ok=True)
 
-        images = self.model.cluster_centers_.reshape(self.n_clusters, 28, 28)
+        images = np.array(self.centroids).reshape(self.n_clusters, 28, 28)
         images *= 255
         images = images.astype(np.uint8)
 
@@ -65,36 +102,14 @@ class KMeans_sklearn:
         fig.savefig(f'{output_dir}/centroids.png')
 
 
-    def plot_2d_centroids(self, output_dir, X_train, Y_train):
-        print("[PLOT] Start plotting centroid")
-
-        os.makedirs(output_dir, exist_ok=True)
-        classification = self.model.fit_predict(X_train)
-
-        sns.scatterplot(x=[X[0] for X in X_train],
-                y=[X[1] for X in X_train],
-                hue=Y_train,
-                style=classification,
-                palette="deep",
-                legend=None
-                )
-        plt.plot([x[0] for x in self.model.cluster_centers_],
-                [y[1] for y in self.model.cluster_centers_],
-                '+',
-                markersize=10,
-                )
-        plt.title("Centroids and Test data")
-            
-        plt.savefig(f'{output_dir}/centroids.png')
-
-    def infer_cluster_labels(self, X = None, Y = None):
+    def infer_cluster_labels(self, classification, Y):
 
         inferred_labels = {}
 
         for i in range(self.n_clusters):
 
             labels = []
-            index = np.where(X == i)
+            index = np.where(classification == i)
 
             labels.append(Y[index])
 
@@ -124,8 +139,7 @@ class KMeans_sklearn:
     def show_metrics(self, X, Y, output_dir):
         # View results
         print("[RESULT]")
-
-        classification = self.model.fit_predict(X)
+        class_centers, classification = self.evaluate(X)
 
         inferred_labels = self.infer_cluster_labels(classification, Y)
         predicted_Y_train = self.infer_data_labels(classification, inferred_labels)

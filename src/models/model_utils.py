@@ -1,5 +1,6 @@
 from .kmeans_serial import *
 from .kmeans_sklearn import *
+from .kmeans_pyomp import *
 
 def get_model(algorithm = "kmeans", n_clusters=10, max_iter=10, nthreads = 1):
     model = None
@@ -8,6 +9,8 @@ def get_model(algorithm = "kmeans", n_clusters=10, max_iter=10, nthreads = 1):
         model = KMeans_serial(n_clusters=n_clusters, max_iter=max_iter)
     elif algorithm == "kmeans_sklearn":
         model = KMeans_sklearn(n_clusters=n_clusters, max_iter=max_iter)
+    elif algorithm == "kmeans_pyomp":
+        model = KMeans_pyomp(n_clusters=n_clusters, max_iter=max_iter, n_threads=nthreads)
     else:
         print(f'Algorithm: [{algorithm}] not support')
     return model
