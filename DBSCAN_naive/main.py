@@ -14,25 +14,54 @@ from keras.datasets import mnist
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
-
 from typing import List, Tuple
 import numpy as np
 from collections import defaultdict
-
 from sklearn.datasets import load_iris
 from sklearn.preprocessing import StandardScaler
-
 import itertools
 
-def normalize_data(train_set):
-    # compute the mean and standard deviation of each feature
-    means = np.mean(train_set, axis=0)
-    stds = np.std(train_set, axis=0)
+class Node:
+    def __init__(self, point, left_child=None, right_child=None):
+        self.point = point
+        self.left_child = left_child
+        self.right_child = right_child
+
+def construct_kdtree(points, depth=0):
+    if len(points) == 0:
+        return None
     
-    # subtract the mean and divide by the standard deviation
-    normalized_set = (train_set - means) / stds
+    num_dimensions = len(points[0])
+    axis = depth % num_dimensions
     
-    return normalized_set
+    sorted_points = sorted(points, key=lambda point: point[axis])
+    mid = len(points) // 2
+    
+    return Node(
+        point=sorted_points[mid],
+        left_child=construct_kdtree(sorted_points[:mid], depth + 1),
+        right_child=construct_kdtree(sorted_points[mid+1:], depth + 1)
+    )
+
+def search_kdtree(root, target_point, radius):
+    points_within_radius = []
+    
+    def search_node(node, target_point, depth, radius, points_within_radius):
+        if node is None:
+            return
+        
+        node_distance = np.linalg.norm(np.array(node.point) - np.array(target_point))
+        if node_distance <= radius:
+            points_within_radius.append(node.point)
+        
+        axis = depth % len(target_point)
+        if target_point[axis] - radius <= node.point[axis]:
+            search_node(node.left_child, target_point, depth + 1, radius, points_within_radius)
+        if target_point[axis] + radius >= node.point[axis]:
+            search_node(node.right_child, target_point, depth + 1, radius, points_within_radius)
+    
+    search_node(root, target_point, 0, radius, points_within_radius)
+    return points_within_radius
 
 def label_interpret(Y, skip=[-1]):
     D = {}
@@ -47,14 +76,14 @@ def label_interpret(Y, skip=[-1]):
             label += 1
         res.append(D[y])
     return res
-    
+
 
 def dbscan(X, eps, min_samples):
     labels = np.zeros(len(X))
     cluster_id = 0
-    
+
     def get_neighbors(X, i, eps):
-        
+
         def euclidean_distance(x1, x2):
             return np.sqrt(np.sum((x1 - x2)**2))
 
@@ -63,7 +92,7 @@ def dbscan(X, eps, min_samples):
             if i != j and euclidean_distance(X[i], X[j]) <= eps:
                 neighbors.append(j)
         return neighbors
-    
+
     def expand_cluster(X, labels, i, neighbors, cluster_id, eps, min_samples):
         labels[i] = cluster_id
         j = 0
@@ -77,25 +106,25 @@ def dbscan(X, eps, min_samples):
                 if len(new_neighbors) >= min_samples:
                     neighbors += new_neighbors
             j += 1
-    
+
     for i in range(len(X)):
         if labels[i] != 0:
             continue
-        
+
         neighbors = get_neighbors(X, i, eps)
         if len(neighbors) < min_samples:
             labels[i] = -1
         else:
             cluster_id += 1
             expand_cluster(X, labels, i, neighbors, cluster_id, eps, min_samples)
-    
+
     return labels
 
 
 def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
     dimension = X.shape[1]
     grid_size = eps / np.sqrt(dimension)
-    
+
     grid = {}
     for i, point in enumerate(X):
         grid_coords = tuple((point // grid_size).astype(int))
@@ -104,10 +133,12 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
         else:
             grid[grid_coords].append(i)
 
+    kdTree = construct_kdtree([k for k,v in grid.items()])
+    
     def get_neighbor_coords(coords: Tuple[int, int]) -> List[Tuple[int, int]]:
-        
+
         dim = len(coords)
-        
+
         dimOptions = []
         for index in coords:
             dimOptions.append([index-2, index-1, index, index+1, index+2])
@@ -121,22 +152,24 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
         neighbors.remove(coords)
 
         return neighbors
-    
+
     # Find core grids
     core_grids = set()
     for grid_coords, cell_indices in grid.items():
         if len(cell_indices) >= min_samples+1:
             core_grids.add(grid_coords)
             continue
-        
+
         neighbors = []
-        for neighbor_coords in get_neighbor_coords(grid_coords):
+        for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
+                                            #  get_neighbor_coords(grid_coords):
+            if neighbor_coords == grid_coords:
+                continue
             if neighbor_coords in grid:
                 neighbors += grid[neighbor_coords]
-        
         if len(cell_indices) + len(neighbors) < min_samples+1:
             continue
-        
+
         # TODO: This can be optimized
         for index in cell_indices:
             numNeighbors = len(cell_indices)
@@ -148,10 +181,10 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
                     if numNeighbors >= min_samples+1:
                         core_grids.add(grid_coords)
                         break
-    
+
     # Expand the cells
     labels = np.full(X.shape[0], -1)
-    
+
     D = {}
     def find(x):
         while x in D and x != D[x]:
@@ -163,23 +196,23 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
         a, b = find(a), find(b)
         D[a] = min(a, b)
         D[b] = min(a, b)
-        
+
     cluster_id = 0
     for grid_coords, cell_indices in grid.items():
         # Skip non-core cells
         if grid_coords not in core_grids:
             continue 
-        
+
         if not cell_indices:
             continue
-        
+
         # Assign cluster Id to uninitial cells
         if labels[cell_indices[0]] == -1:
             labels[cell_indices] = cluster_id
             cluster_id += 1
-        
+
         # Expend cell connections
-        for neighbor_coords in get_neighbor_coords(grid_coords):
+        for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
             if neighbor_coords not in grid:
                 continue
             min_distance = 10**9
@@ -195,7 +228,7 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
                     labels[grid[neighbor_coords]] = labels[cell_indices[0]]
                 else:
                     union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
-    
+
     labels = [find(x) for x in labels]
             
     return labels
@@ -207,7 +240,6 @@ if dataset == 'MNIST':
     # Reshape the data into a 2D array of shape (n_samples, n_features)
     X_train = x_train.reshape((x_train.shape[0], -1))
     X_test = x_test.reshape((x_test.shape[0], -1))
-    
     Y_train = y_train
 
     # Apply PCA to reduce the dimensions to 2
@@ -231,7 +263,7 @@ if method == 1:
 elif method == 2:
     sub_sample = 100
     X_train = X_train[:sub_sample]
-    print(f'iris data: {X_train}')
+    # print(f'iris data: {X_train}')
     dbscan_labels = grid_dbscan(X_train, eps=1, min_samples=1)
     print(f'grid-based DBSCAN. {label_interpret(dbscan_labels)}')
     print(f'answer. {Y_train[:sub_sample]}')
