@@ -21,13 +21,15 @@ from sklearn.datasets import load_iris
 from sklearn.preprocessing import StandardScaler
 import itertools
 
-class Node:
+class KDTreeNode:
+    ''' kdtree for efficient searching on high dimension space.'''
     def __init__(self, point, left_child=None, right_child=None):
         self.point = point
         self.left_child = left_child
         self.right_child = right_child
 
 def construct_kdtree(points, depth=0):
+    ''' Build the kdtree on points. Split at "depth" dimension. '''
     if len(points) == 0:
         return None
     
@@ -37,13 +39,14 @@ def construct_kdtree(points, depth=0):
     sorted_points = sorted(points, key=lambda point: point[axis])
     mid = len(points) // 2
     
-    return Node(
+    return KDTreeNode(
         point=sorted_points[mid],
         left_child=construct_kdtree(sorted_points[:mid], depth + 1),
         right_child=construct_kdtree(sorted_points[mid+1:], depth + 1)
     )
 
 def search_kdtree(root, target_point, radius):
+    ''' Search the kdtree on points. Split at "depth" dimension. '''
     points_within_radius = []
     
     def search_node(node, target_point, depth, radius, points_within_radius):
@@ -64,6 +67,7 @@ def search_kdtree(root, target_point, radius):
     return points_within_radius
 
 def label_interpret(Y, skip=[-1]):
+    ''' Make labels continuous. '''
     D = {}
     label = 0
     res = []
@@ -77,8 +81,8 @@ def label_interpret(Y, skip=[-1]):
         res.append(D[y])
     return res
 
-
 def dbscan(X, eps, min_samples):
+    ''' Naive DBSCAN. '''
     labels = np.zeros(len(X))
     cluster_id = 0
 
@@ -122,9 +126,15 @@ def dbscan(X, eps, min_samples):
 
 
 def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
+    '''
+    An implementation of the paper 'On the Hardness and Approximation of Euclidean DBSCAN'.
+    '''
+    # - Note that any two points in the same cell are at most 
+    # - distance 'eps' apart.
     dimension = X.shape[1]
     grid_size = eps / np.sqrt(dimension)
 
+    # - Assign grids to each cells
     grid = {}
     for i, point in enumerate(X):
         grid_coords = tuple((point // grid_size).astype(int))
@@ -133,10 +143,11 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
         else:
             grid[grid_coords].append(i)
 
+    # - Construct KD Tree
     kdTree = construct_kdtree([k for k,v in grid.items()])
     
     def get_neighbor_coords(coords: Tuple[int, int]) -> List[Tuple[int, int]]:
-
+        ''''''
         dim = len(coords)
 
         dimOptions = []
@@ -153,36 +164,48 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
 
         return neighbors
 
-    # Find core grids
-    core_grids = set()
+    # - Label core cells
+    core_cells = set()
     for grid_coords, cell_indices in grid.items():
+        
+        # In-grid core cell
         if len(cell_indices) >= min_samples+1:
-            core_grids.add(grid_coords)
+            core_cells.add(grid_coords)
             continue
 
+        # Calculate B(p, eps) 
         neighbors = []
         for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
-                                            #  get_neighbor_coords(grid_coords):
             if neighbor_coords == grid_coords:
                 continue
             if neighbor_coords in grid:
                 neighbors += grid[neighbor_coords]
         if len(cell_indices) + len(neighbors) < min_samples+1:
             continue
+        
+        if min_samples <= 4:
+            # Brute-force
+            for index in cell_indices:
+                numNeighbors = len(cell_indices)
+                point = X[index]
+                for neighbor_index in neighbors:
+                    neighbor = X[neighbor_index]
+                    if np.linalg.norm(point - neighbor) <= eps:
+                        numNeighbors += 1
+                        if numNeighbors >= (min_samples+1):
+                            core_cells.add(grid_coords)
+                            break
+        else:
+            # KD Tree approach
+            neighbor_kdtree = construct_kdtree(X[neighbors])
+            for index in cell_indices:
+                point = X[index]
+                numNeighbors = len(cell_indices) + len(search_kdtree(neighbor_kdtree, point, eps))
+                if numNeighbors >= (min_samples+1):
+                    core_cells.add(grid_coords)
+                    break
 
-        # TODO: This can be optimized
-        for index in cell_indices:
-            numNeighbors = len(cell_indices)
-            point = X[index]
-            for neighbor_index in neighbors:
-                neighbor = X[neighbor_index]
-                if np.linalg.norm(point - neighbor) <= eps:
-                    numNeighbors += 1
-                    if numNeighbors >= min_samples+1:
-                        core_grids.add(grid_coords)
-                        break
-
-    # Expand the cells
+    # - Initial Clusters
     labels = np.full(X.shape[0], -1)
 
     D = {}
@@ -199,35 +222,46 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
 
     cluster_id = 0
     for grid_coords, cell_indices in grid.items():
-        # Skip non-core cells
-        if grid_coords not in core_grids:
-            continue 
-
+        # Skip empty cells
         if not cell_indices:
             continue
+        
+        # Skip non-core cells
+        if grid_coords not in core_cells:
+            continue 
 
         # Assign cluster Id to uninitial cells
         if labels[cell_indices[0]] == -1:
             labels[cell_indices] = cluster_id
             cluster_id += 1
 
-        # Expend cell connections
+        # Expend cell connections based on Bichromatic Closest Pair(BCP)
+        
         for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
             if neighbor_coords not in grid:
                 continue
-            min_distance = 10**9
-            for neighbor_index in grid[neighbor_coords]:
-                neighbor = X[neighbor_index]
+            if min_samples <= 4:
+                for neighbor_index in grid[neighbor_coords]:
+                    neighbor = X[neighbor_index]
+                    for index in cell_indices:
+                        point = X[index]
+                        if np.linalg.norm(point - neighbor) <= eps:
+                            if labels[grid[neighbor_coords][0]] == -1:
+                                labels[grid[neighbor_coords]] = labels[cell_indices[0]]
+                            else:
+                                union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                            break
+            else:
+                neighbor_kdtree = construct_kdtree(X[grid[neighbor_coords]])
                 for index in cell_indices:
                     point = X[index]
-                    min_distance = min(min_distance, np.linalg.norm(point - neighbor))
-            if min_distance <= eps:
-                if not grid[neighbor_coords]:
-                    continue
-                if labels[grid[neighbor_coords][0]] == -1:
-                    labels[grid[neighbor_coords]] = labels[cell_indices[0]]
-                else:
-                    union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                    if search_kdtree(neighbor_kdtree, point, eps):
+                        if labels[grid[neighbor_coords][0]] == -1:
+                            labels[grid[neighbor_coords]] = labels[cell_indices[0]]
+                        else:
+                            union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                        break
+
 
     labels = [find(x) for x in labels]
             
@@ -261,10 +295,10 @@ if method == 1:
     print(f'naice DBSCAN. {dbscan_labels}')
     print(f'answer. {Y_train[:sub_sample]}')
 elif method == 2:
-    sub_sample = 100
+    sub_sample = len(X_train)
     X_train = X_train[:sub_sample]
     # print(f'iris data: {X_train}')
-    dbscan_labels = grid_dbscan(X_train, eps=1, min_samples=1)
+    dbscan_labels = grid_dbscan(X_train, eps=0.5, min_samples=5)
     print(f'grid-based DBSCAN. {label_interpret(dbscan_labels)}')
     print(f'answer. {Y_train[:sub_sample]}')
 else:
