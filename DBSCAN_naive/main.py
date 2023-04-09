@@ -34,6 +34,21 @@ def normalize_data(train_set):
     
     return normalized_set
 
+def label_interpret(Y, skip=[-1]):
+    D = {}
+    label = 0
+    res = []
+    for y in Y:
+        if y in skip:
+            res.append(y)
+            continue
+        if y not in D:
+            D[y] = label
+            label += 1
+        res.append(D[y])
+    return res
+    
+
 def dbscan(X, eps, min_samples):
     labels = np.zeros(len(X))
     cluster_id = 0
@@ -192,6 +207,8 @@ if dataset == 'MNIST':
     # Reshape the data into a 2D array of shape (n_samples, n_features)
     X_train = x_train.reshape((x_train.shape[0], -1))
     X_test = x_test.reshape((x_test.shape[0], -1))
+    
+    Y_train = y_train
 
     # Apply PCA to reduce the dimensions to 2
     pca = PCA(n_components=2)
@@ -200,21 +217,24 @@ if dataset == 'MNIST':
 else:
     iris = load_iris()
     X_train = iris.data
+    Y_train = iris.target
     X_train = StandardScaler().fit_transform(X_train)
     print(f'use Iris data set, dim = 4.')
 
 # Apply DBSCAN to cluster the data
 if method == 1:
-    X_train = X_train[:10]
-    X_train = normalize_data(X_train)
+    sub_sample = 10
+    X_train = X_train[:sub_sample]
     dbscan_labels = dbscan(X_train, eps=0.1, min_samples=1)
     print(f'naice DBSCAN. {dbscan_labels}')
+    print(f'answer. {Y_train[:sub_sample]}')
 elif method == 2:
-    X_train = X_train[:10]
-    X_train = normalize_data(X_train)
+    sub_sample = 100
+    X_train = X_train[:sub_sample]
     print(f'iris data: {X_train}')
     dbscan_labels = grid_dbscan(X_train, eps=1, min_samples=1)
-    print(f'grid-based DBSCAN. {dbscan_labels}')
+    print(f'grid-based DBSCAN. {label_interpret(dbscan_labels)}')
+    print(f'answer. {Y_train[:sub_sample]}')
 else:
     dbscan = DBSCAN(eps=10, min_samples=5)
     dbscan_labels = dbscan.fit_predict(X_train)
