@@ -7,8 +7,10 @@
 # conda install -c conda-forge matplotlib
 
 method = 2
+dataset = 'Iris'
 
 from keras.datasets import mnist
+
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
@@ -17,6 +19,20 @@ from typing import List, Tuple
 import numpy as np
 from collections import defaultdict
 
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+
+import itertools
+
+def normalize_data(train_set):
+    # compute the mean and standard deviation of each feature
+    means = np.mean(train_set, axis=0)
+    stds = np.std(train_set, axis=0)
+    
+    # subtract the mean and divide by the standard deviation
+    normalized_set = (train_set - means) / stds
+    
+    return normalized_set
 
 def dbscan(X, eps, min_samples):
     labels = np.zeros(len(X))
@@ -62,14 +78,8 @@ def dbscan(X, eps, min_samples):
 
 
 def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
-    """
-    Performs grid-based DBSCAN clustering on the input data.
-    :param X: The input data as a numpy array.
-    :param eps: The radius of the neighborhood to be considered.
-    :param min_samples: The minimum number of samples required for a cluster.
-    :return: A list of cluster labels for each data point.
-    """
-    grid_size = eps / np.sqrt(2)
+    dimension = X.shape[1]
+    grid_size = eps / np.sqrt(dimension)
     
     grid = {}
     for i, point in enumerate(X):
@@ -80,13 +90,23 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
             grid[grid_coords].append(i)
 
     def get_neighbor_coords(coords: Tuple[int, int]) -> List[Tuple[int, int]]:
-        x, y = coords
-        return [(x-2, y-1), (x-2, y), (x-2, y+1),\
-                (x-1, y-2), (x-1, y-1), (x-1, y), (x-1, y+1), (x-1, y+2),\
-                (x, y-2), (x, y-1), (x, y), (x, y+1), (x, y+2),\
-                (x+1, y-2), (x+1, y-1), (x+1, y), (x+1, y+1), (x+1, y+2),\
-                (x+2, y-1), (x+2, y), (x+2, y+1)]
+        
+        dim = len(coords)
+        
+        dimOptions = []
+        for index in coords:
+            dimOptions.append([index-2, index-1, index, index+1, index+2])
+            
+        def generate_combinations(list_of_lists):
+            combos = itertools.product(*list_of_lists)
+            tuples = [tuple(combo) for combo in combos]
+            return tuples
 
+        neighbors = generate_combinations(dimOptions)
+        neighbors.remove(coords)
+
+        return neighbors
+    
     # Find core grids
     core_grids = set()
     for grid_coords, cell_indices in grid.items():
@@ -165,32 +185,46 @@ def grid_dbscan(X: np.ndarray, eps: float, min_samples: int) -> List[int]:
             
     return labels
 
-# Load the MNIST dataset from Keras
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+if dataset == 'MNIST':
+    # Load the MNIST dataset from Keras
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-# Reshape the data into a 2D array of shape (n_samples, n_features)
-X_train = x_train.reshape((x_train.shape[0], -1))
-X_test = x_test.reshape((x_test.shape[0], -1))
+    # Reshape the data into a 2D array of shape (n_samples, n_features)
+    X_train = x_train.reshape((x_train.shape[0], -1))
+    X_test = x_test.reshape((x_test.shape[0], -1))
 
-# Apply PCA to reduce the dimensions to 2
-pca = PCA(n_components=2)
-X_train_pca = pca.fit_transform(X_train)
+    # Apply PCA to reduce the dimensions to 2
+    pca = PCA(n_components=2)
+    X_train = pca.fit_transform(X_train)
+    print(f'use MNIST data set, dim = 2(after PCA).')
+else:
+    iris = load_iris()
+    X_train = iris.data
+    X_train = StandardScaler().fit_transform(X_train)
+    print(f'use Iris data set, dim = 4.')
 
 # Apply DBSCAN to cluster the data
 if method == 1:
-    X_train_pca = X_train_pca[:10]
-    dbscan_labels = dbscan(X_train_pca, eps=200, min_samples=1)
+    X_train = X_train[:10]
+    X_train = normalize_data(X_train)
+    dbscan_labels = dbscan(X_train, eps=0.1, min_samples=1)
+    print(f'naice DBSCAN. {dbscan_labels}')
 elif method == 2:
-    X_train_pca = X_train_pca[:10]
-    dbscan_labels = grid_dbscan(X_train_pca, eps=200, min_samples=1)
+    X_train = X_train[:10]
+    X_train = normalize_data(X_train)
+    print(f'iris data: {X_train}')
+    dbscan_labels = grid_dbscan(X_train, eps=1, min_samples=1)
+    print(f'grid-based DBSCAN. {dbscan_labels}')
 else:
     dbscan = DBSCAN(eps=10, min_samples=5)
-    dbscan_labels = dbscan.fit_predict(X_train_pca)
+    dbscan_labels = dbscan.fit_predict(X_train)
+    print(f'sklearn DBSCAN. {dbscan_labels}')
 
-# Create a scatter plot of the clustered data
-plt.scatter(X_train_pca[:, 0], X_train_pca[:, 1], c=dbscan_labels)
-plt.title('DBSCAN Clustering of MNIST Data')
-plt.xlabel('Principal Component 1')
-plt.ylabel('Principal Component 2')
-plt.savefig('dbscan_mnist_clusters.png')
-plt.show()
+if dataset == 'MNIST':
+    # Create a scatter plot of the clustered data
+    plt.scatter(X_train[:, 0], X_train[:, 1], c=dbscan_labels)
+    plt.title('DBSCAN Clustering of MNIST Data')
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
+    plt.savefig('dbscan_mnist_clusters.png')
+    plt.show()
