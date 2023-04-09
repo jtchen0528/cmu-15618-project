@@ -1,9 +1,7 @@
 import sklearn
-import matplotlib.pyplot as plt
 from typing import List, Tuple
 import numpy as np
 from collections import defaultdict
-from sklearn.preprocessing import StandardScaler
 import itertools
 from sklearn import metrics
 import os
@@ -56,7 +54,7 @@ def search_kdtree(root, target_point, radius):
     return points_within_radius
 
 def align_labels(Y, _Y, skip=[-1]):
-    ''' Make labels continuous. '''
+    ''' Align labels. '''
     if len(Y) != len(_Y):
         print(f'EXCEPTION: prediction(len={len(Y)}) and ground truth(len={len(Y)}) has different length.')
         return Y
@@ -101,6 +99,9 @@ class DBSCAN:
         return self.fit_predict(X)
         
     def _fit_naive(self, X):
+        '''
+        @WARN: naive implementation is O(N^2). I never saw its execution completed.
+        '''
         labels = np.full(X.shape[0], 0)
         cluster_id = 0
 
@@ -159,6 +160,11 @@ class DBSCAN:
         self.log_time("dbsacn_grid-construct kdtree", start_time)
         
         def get_neighbor_coords(coords: Tuple[int, int]) -> List[Tuple[int, int]]:
+            '''
+            Naive neighbors searching.
+            Return all the grids within 2.3 grid-unit.
+            @WARN: It's not efficient in high dimension space.
+            '''
             dim = len(coords)
             dimOptions = []
             
@@ -185,7 +191,7 @@ class DBSCAN:
                 core_cells.add(grid_coords)
                 continue
 
-            # Calculate B(p, self.eps) 
+            # Get neighbors
             neighbors = []
             for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
                 if neighbor_coords == grid_coords:
@@ -195,6 +201,7 @@ class DBSCAN:
             if len(cell_indices) + len(neighbors) < self.min_samples+1:
                 continue
             
+            # Check number of connections
             if self.min_samples <= 4:
                 # Brute-force
                 for index in cell_indices:
@@ -221,6 +228,8 @@ class DBSCAN:
         # - Clustering
         start_time = time.time()
         labels = np.full(X.shape[0], -1)
+        
+        # Union and Find for clustering
         D = {}
         def find(x):
             while x in D and x != D[x]:
@@ -243,7 +252,7 @@ class DBSCAN:
             if grid_coords not in core_cells:
                 continue 
 
-            # Assign cluster Id to uninitial cells
+            # Assign cluster Id
             if labels[cell_indices[0]] == -1:
                 labels[cell_indices] = cluster_id
                 cluster_id += 1
@@ -287,12 +296,6 @@ class DBSCAN:
         predicted_Y_train = self.evaluate(X)
         predicted_Y_train = align_labels(predicted_Y_train, Y)
         classification = predicted_Y_train
-        t = set()
-        for y in predicted_Y_train:
-            t.add(y)
-        print(t)
-        print(f'first 10 pred: {predicted_Y_train[:10]}')
-        print(f'first 10 trut: {Y[:10]}')
         print('Homogeneity: {}'.format(metrics.homogeneity_score(Y, classification)))
         print('Accuracy: {}\n'.format(metrics.accuracy_score(Y, predicted_Y_train)))
 
