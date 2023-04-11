@@ -6,7 +6,7 @@ source colors.sh
 # @STUDENTS: SET THESE UP
 CLUSTER_NAME=SparkCluster
 CONFIG_PATH=config.yaml
-PEM_PATH=/home/ubuntu/jhaoting.pem
+PEM_PATH=/home/ubuntu/jhaoting_14848.pem
 
 # @STUDENTS: DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING
 SCP_PAYLOAD="colors.sh post-setup-master.sh"
@@ -27,7 +27,7 @@ setup_cluster() {
 
   flintrock --config $CONFIG_PATH launch $CLUSTER_NAME
   flintrock describe $CLUSTER_NAME --master-hostname-only > ~/.spark_master
-  python3.8 spark_attach_vol.py --cluster-name $CLUSTER_NAME --size $DATA_CACHE_SIZE
+  python3 spark_attach_vol.py --cluster-name $CLUSTER_NAME --size $DATA_CACHE_SIZE
 
   SPARK_MASTER=ec2-user@`cat ~/.spark_master`
   # What else to scp 
