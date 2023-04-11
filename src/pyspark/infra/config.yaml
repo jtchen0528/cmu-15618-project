@@ -1,0 +1,33 @@
+services:
+  spark:
+    version: 3.3.1
+    download-source: "http://s3.us-east-1.amazonaws.com/cmucc-public/spark-{v}-bin-hadoop3.tgz"
+  hdfs:
+    version: 3.3.2
+    download-source: "http://s3.us-east-1.amazonaws.com/cmucc-public/hadoop-{v}.tar.gz"
+
+provider: ec2
+
+providers:
+  ec2:
+    key-name: jhaoting
+    identity-file: /home/ubuntu/jhaoting.pem
+    ami: ami-0aeeebd8d2ab47354
+    user: ec2-user
+    region: us-east-1
+    availability-zone: us-east-1a # @STUDENTS: CHOOSE AVAILABILITY ZONE IF NECESSARY
+    instance-type: m6i.xlarge
+    spot-price: 1
+    tags:
+      - project,pl-project
+    min-root-ebs-size-gb: 50
+    tenancy: default
+    ebs-optimized: no
+    instance-initiated-shutdown-behavior: terminate
+
+launch:
+    num-slaves: 4
+    install-hdfs: True
+    install-spark: True
+
+debug: false
