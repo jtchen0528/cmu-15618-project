@@ -26,12 +26,17 @@ def construct_kdtree(points, depth=0):
     sorted_points = sorted(points, key=lambda point: point[axis])
     mid = len(points) // 2
     
-    return KDTreeNode(
-        point=sorted_points[mid],
-        left_child=construct_kdtree(sorted_points[:mid], depth + 1),
-        right_child=construct_kdtree(sorted_points[mid+1:], depth + 1)
-    )
+    node = KDTreeNode(point=sorted_points[mid])
+    # task
+    # high priority
+    node.left_child = construct_kdtree(sorted_points[:mid], depth + 1)
+    # task
+    # high priority
+    node.right_child = construct_kdtree(sorted_points[:mid], depth + 1)
+    return node
 
+# Can be parallelized but need atomic on points_within_radius.
+# lower priority
 def search_kdtree(root, target_point, radius):
     ''' Search the kdtree on points. Split at "depth" dimension. '''
     points_within_radius = []
@@ -60,6 +65,8 @@ def align_labels(Y, _Y, skip=[-1]):
         return Y
     D = {}
     res = []
+    # paralle omp for
+    # need atomic on 'res'
     for i in range(len(Y)):
         y = Y[i]
         if y in skip:
@@ -147,6 +154,8 @@ class DBSCAN:
         # - Assign grids to each cells
         start_time = time.time()
         grid = {}
+        # pragma omp parallel for
+        # critical on grid.append
         for i, point in enumerate(X):
             grid_coords = tuple((point // grid_size).astype(int))
             if grid_coords not in grid:
@@ -184,6 +193,8 @@ class DBSCAN:
         # - Label core cells
         start_time = time.time()
         core_cells = set()
+        # pragma omp parallel for
+        # crtical on core_cells
         for grid_coords, cell_indices in grid.items():
             
             # In-grid core cell
@@ -230,6 +241,7 @@ class DBSCAN:
         labels = np.full(X.shape[0], -1)
         
         # Union and Find for clustering
+        # critical global data(?)
         D = {}
         def find(x):
             while x in D and x != D[x]:
@@ -243,6 +255,9 @@ class DBSCAN:
             D[b] = min(a, b)
 
         cluster_id = 0
+        # pragma omp parallel for
+        # crtical data: labels
+        # might need to figure out at way to parallelize without critical sections
         for grid_coords, cell_indices in grid.items():
             # Skip empty cells
             if not cell_indices:
