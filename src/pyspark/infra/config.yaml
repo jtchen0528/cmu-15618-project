@@ -10,13 +10,13 @@ provider: ec2
 
 providers:
   ec2:
-    key-name: jhaoting
-    identity-file: /home/ubuntu/jhaoting.pem
+    key-name: jhaoting_14848
+    identity-file: /home/ubuntu/jhaoting_14848.pem
     ami: ami-0aeeebd8d2ab47354
     user: ec2-user
     region: us-east-1
     availability-zone: us-east-1a # @STUDENTS: CHOOSE AVAILABILITY ZONE IF NECESSARY
-    instance-type: m6i.xlarge
+    instance-type: t3.large
     spot-price: 1
     tags:
       - project,pl-project
@@ -26,7 +26,7 @@ providers:
     instance-initiated-shutdown-behavior: terminate
 
 launch:
-    num-slaves: 4
+    num-slaves: 2
     install-hdfs: True
     install-spark: True
 

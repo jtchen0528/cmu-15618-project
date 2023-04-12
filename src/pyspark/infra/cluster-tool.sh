@@ -6,7 +6,7 @@ source colors.sh
 # @STUDENTS: SET THESE UP
 CLUSTER_NAME=SparkCluster
 CONFIG_PATH=config.yaml
-PEM_PATH=/home/ubuntu/jhaoting.pem
+PEM_PATH=/home/ubuntu/jhaoting_14848.pem
 
 # @STUDENTS: DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING
 SCP_PAYLOAD="colors.sh post-setup-master.sh"
@@ -27,8 +27,20 @@ setup_cluster() {
 
   flintrock --config $CONFIG_PATH launch $CLUSTER_NAME
   flintrock describe $CLUSTER_NAME --master-hostname-only > ~/.spark_master
-  python3.8 spark_attach_vol.py --cluster-name $CLUSTER_NAME --size $DATA_CACHE_SIZE
+  python3 spark_attach_vol.py --cluster-name $CLUSTER_NAME --size $DATA_CACHE_SIZE
 
+  SPARK_MASTER=ec2-user@`cat ~/.spark_master`
+  # What else to scp 
+  scp -o StrictHostKeyChecking=no -i $PEM_PATH $SCP_PAYLOAD $SPARK_MASTER:~
+  ssh -o StrictHostKeyChecking=no -i $PEM_PATH $SPARK_MASTER "~/$REMOTE_SETUP_SCRIPT --setup"
+
+  mkdir -p ~/.ssh
+  echo -e "Host sc\n\tHostName `cat ~/.spark_master`\n\tUser ec2-user\n\tIdentityFile `readlink -e $PEM_PATH`" > ~/.ssh/config
+
+  yellow 'Cluster setup. Cluster master is aliased to "sc" in your ~/.ssh/config, you can access it using "ssh sc" or scp to it using "scp file sc:~"'
+}
+
+post_setup() {
   SPARK_MASTER=ec2-user@`cat ~/.spark_master`
   # What else to scp 
   scp -o StrictHostKeyChecking=no -i $PEM_PATH $SCP_PAYLOAD $SPARK_MASTER:~
@@ -65,6 +77,7 @@ while [ $# -gt 0 ] ; do
     -s | --setup) setup_cluster ;;
     -t | --teardown) teardown_cluster ;;
     -l | --login) login ;;
+    -p | --post) post_setup ;;
     *) prompt ;;
   esac
   shift
