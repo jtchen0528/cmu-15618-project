@@ -43,6 +43,7 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
 
     conf = pyspark.SparkConf().setAppName("CommonCrawlProcessor")
+    conf.set("spark.rpc.message.maxSize", "1024")
     sc = pyspark.SparkContext(conf=conf)
 
     random.seed(seed)
