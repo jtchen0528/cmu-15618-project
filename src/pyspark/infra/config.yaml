@@ -16,7 +16,7 @@ providers:
     user: ec2-user
     region: us-east-1
     availability-zone: us-east-1a # @STUDENTS: CHOOSE AVAILABILITY ZONE IF NECESSARY
-    instance-type: c6i.large
+    instance-type: t3.large
     spot-price: 1
     tags:
       - project,pl-project

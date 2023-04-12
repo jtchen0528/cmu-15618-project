@@ -91,7 +91,7 @@ format_and_mount_disk() {
 setup() {
   sudo yum update -y
   sudo yum install git libcurl python3 -y
-  pip3 install --user warc3-wet beautifulsoup4 requests
+  pip3 install --user warc3-wet beautifulsoup4 requests numpy scikit-learn
   echo "export PYSPARK_PYTHON='/usr/bin/python3'" >> .bash_profile
   export PYSPARK_PYTHON='/usr/bin/python3'
 
@@ -101,6 +101,10 @@ setup() {
   export HADOOP_CONF_DIR='/home/ec2-user/hadoop/etc/hadoop'
   cp ~/hadoop/conf/core-site.xml ~/hadoop/etc/hadoop/core-site.xml
   cp ~/hadoop/conf/hdfs-site.xml ~/hadoop/etc/hadoop/hdfs-site.xml
+
+  sudo mkdir /tmp/spark-events
+  sudo chown ec2-user /tmp/spark-events
+  sudo chmod 755 /tmp/spark-events
 
   format_and_mount_disk /dev/nvme1n1
 
