@@ -40,6 +40,18 @@ setup_cluster() {
   yellow 'Cluster setup. Cluster master is aliased to "sc" in your ~/.ssh/config, you can access it using "ssh sc" or scp to it using "scp file sc:~"'
 }
 
+post_setup() {
+  SPARK_MASTER=ec2-user@`cat ~/.spark_master`
+  # What else to scp 
+  scp -o StrictHostKeyChecking=no -i $PEM_PATH $SCP_PAYLOAD $SPARK_MASTER:~
+  ssh -o StrictHostKeyChecking=no -i $PEM_PATH $SPARK_MASTER "~/$REMOTE_SETUP_SCRIPT --setup"
+
+  mkdir -p ~/.ssh
+  echo -e "Host sc\n\tHostName `cat ~/.spark_master`\n\tUser ec2-user\n\tIdentityFile `readlink -e $PEM_PATH`" > ~/.ssh/config
+
+  yellow 'Cluster setup. Cluster master is aliased to "sc" in your ~/.ssh/config, you can access it using "ssh sc" or scp to it using "scp file sc:~"'
+}
+
 teardown_cluster() {
   flintrock --config $CONFIG_PATH describe $CLUSTER_NAME --master-hostname-only > ~/.spark_master
   SPARK_MASTER=ec2-user@`cat ~/.spark_master`
@@ -65,6 +77,7 @@ while [ $# -gt 0 ] ; do
     -s | --setup) setup_cluster ;;
     -t | --teardown) teardown_cluster ;;
     -l | --login) login ;;
+    -p | --post) post_setup ;;
     *) prompt ;;
   esac
   shift
