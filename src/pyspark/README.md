@@ -8,3 +8,4 @@ sudo apt install awscli
 aws configure
 pip3 install flintrock boto3 sty
 ```
+set inbound rule for flintrock security group

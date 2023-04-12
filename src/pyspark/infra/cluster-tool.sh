@@ -11,7 +11,7 @@ PEM_PATH=/home/ubuntu/jhaoting_14848.pem
 # @STUDENTS: DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING
 SCP_PAYLOAD="colors.sh post-setup-master.sh"
 REMOTE_SETUP_SCRIPT="post-setup-master.sh"
-DATA_CACHE_SIZE=200
+DATA_CACHE_SIZE=50
 
 assert_pem_path() {
   if [[ ! -f $PEM_PATH ]]; then
