@@ -23,8 +23,8 @@ def load_mnist(path = "data/mnist.npz", seed = 15618, compress_data = False):
         X_test = pca.fit_transform(X_test)
 
     X_train = X_train.tolist()
-    Y_train = X_train.tolist()
-    X_test = X_train.tolist()
-    Y_test = X_train.tolist()
+    Y_train = Y_train.tolist()
+    X_test = X_test.tolist()
+    Y_test = Y_test.tolist()
     
     return (X_train, Y_train), (X_test, Y_test)
