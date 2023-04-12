@@ -29,10 +29,6 @@ setup_cluster() {
   flintrock describe $CLUSTER_NAME --master-hostname-only > ~/.spark_master
   python3 spark_attach_vol.py --cluster-name $CLUSTER_NAME --size $DATA_CACHE_SIZE
 
-}
-
-post_setup_cluster() {
-  
   SPARK_MASTER=ec2-user@`cat ~/.spark_master`
   # What else to scp 
   scp -o StrictHostKeyChecking=no -i $PEM_PATH $SCP_PAYLOAD $SPARK_MASTER:~
@@ -43,7 +39,6 @@ post_setup_cluster() {
 
   yellow 'Cluster setup. Cluster master is aliased to "sc" in your ~/.ssh/config, you can access it using "ssh sc" or scp to it using "scp file sc:~"'
 }
-
 
 teardown_cluster() {
   flintrock --config $CONFIG_PATH describe $CLUSTER_NAME --master-hostname-only > ~/.spark_master
@@ -70,7 +65,6 @@ while [ $# -gt 0 ] ; do
     -s | --setup) setup_cluster ;;
     -t | --teardown) teardown_cluster ;;
     -l | --login) login ;;
-    -p | --post) post_setup_cluster ;;
     *) prompt ;;
   esac
   shift
