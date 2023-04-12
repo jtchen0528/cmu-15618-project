@@ -19,18 +19,16 @@ def construct_kdtree(points, depth=0):
     ''' Build the kdtree on points. Split at "depth" dimension. '''
     if len(points) == 0:
         return None
-    
     num_dimensions = len(points[0])
     axis = depth % num_dimensions
-    
     sorted_points = sorted(points, key=lambda point: point[axis])
     mid = len(points) // 2
-    
-    return KDTreeNode(
-        point=sorted_points[mid],
-        left_child=construct_kdtree(sorted_points[:mid], depth + 1),
-        right_child=construct_kdtree(sorted_points[mid+1:], depth + 1)
-    )
+    node = KDTreeNode(point=sorted_points[mid])
+    # omp task
+    node.left_child = construct_kdtree(sorted_points[:mid], depth + 1)
+    # omp task
+    node.right_child = construct_kdtree(sorted_points[mid+1:], depth + 1)
+    return node
 
 def search_kdtree(root, target_point, radius):
     ''' Search the kdtree on points. Split at "depth" dimension. '''
@@ -45,11 +43,12 @@ def search_kdtree(root, target_point, radius):
             points_within_radius.append(node.point)
         
         axis = depth % len(target_point)
-        if target_point[axis] - radius <= node.point[axis]:
+        if target_point[axis] - radius <= node.point[axis]: # omp task
             search_node(node.left_child, target_point, depth + 1, radius, points_within_radius)
-        if target_point[axis] + radius >= node.point[axis]:
+        if target_point[axis] + radius >= node.point[axis]: # omp task
             search_node(node.right_child, target_point, depth + 1, radius, points_within_radius)
-    
+
+    # omp task
     search_node(root, target_point, 0, radius, points_within_radius)
     return points_within_radius
 
@@ -147,8 +146,11 @@ class DBSCAN:
         # - Assign grids to each cells
         start_time = time.time()
         grid = {}
+        # omp for, ciritcal: grid
+        ID = {}
         for i, point in enumerate(X):
             grid_coords = tuple((point // grid_size).astype(int))
+            ID[grid_coords] = i
             if grid_coords not in grid:
                 grid[grid_coords] = [i]
             else:
@@ -184,6 +186,8 @@ class DBSCAN:
         # - Label core cells
         start_time = time.time()
         core_cells = set()
+        # omp for, critical: core_cells
+        # opt: use core_flags[cell_count] to avoid critcal
         for grid_coords, cell_indices in grid.items():
             
             # In-grid core cell
@@ -193,6 +197,7 @@ class DBSCAN:
 
             # Get neighbors
             neighbors = []
+            # omp for, critical: neighbors
             for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
                 if neighbor_coords == grid_coords:
                     continue
@@ -204,6 +209,7 @@ class DBSCAN:
             # Check number of connections
             if self.min_samples <= 4:
                 # Brute-force
+                # omp for, critical: core_cells, notify required
                 for index in cell_indices:
                     numNeighbors = len(cell_indices)
                     point = X[index]
@@ -217,6 +223,7 @@ class DBSCAN:
             else:
                 # KD Tree approach
                 neighbor_kdtree = construct_kdtree(X[neighbors])
+                # omp for, critical: core_cells, notify required
                 for index in cell_indices:
                     point = X[index]
                     numNeighbors = len(cell_indices) + len(search_kdtree(neighbor_kdtree, point, self.eps))
@@ -243,6 +250,7 @@ class DBSCAN:
             D[b] = min(a, b)
 
         cluster_id = 0
+        # omp for
         for grid_coords, cell_indices in grid.items():
             # Skip empty cells
             if not cell_indices:
@@ -258,6 +266,7 @@ class DBSCAN:
                 cluster_id += 1
 
             # Expend cell connections based on Bichromatic Closest Pair(BCP)
+            # omp for, critical: D
             for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
                 if neighbor_coords not in grid:
                     continue
@@ -270,7 +279,8 @@ class DBSCAN:
                                 if labels[grid[neighbor_coords][0]] == -1:
                                     labels[grid[neighbor_coords]] = labels[cell_indices[0]]
                                 else:
-                                    union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                                    if ID[grid_coords] > ID[neighbor_coords]:
+                                        union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
                                 break
                 else:
                     neighbor_kdtree = construct_kdtree(X[grid[neighbor_coords]])
@@ -280,7 +290,8 @@ class DBSCAN:
                             if labels[grid[neighbor_coords][0]] == -1:
                                 labels[grid[neighbor_coords]] = labels[cell_indices[0]]
                             else:
-                                union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                                if ID[grid_coords] > ID[neighbor_coords]:
+                                    union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
                             break
         self.log_time("dbscan_grid-clustering", start_time)
         
