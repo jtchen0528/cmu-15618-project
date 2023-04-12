@@ -52,6 +52,6 @@ if __name__ == "__main__":
 
     X_train_rdd = sc.parallelize(X_train, nthreads)
 
-    write_rdd(X_train_rdd, output_dir, "X_train_rdd")
+    write_rdd(X_train_rdd, "X_train_rdd", output_dir)
 
     sc.stop()
