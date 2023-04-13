@@ -8,9 +8,9 @@ import os
 import time
 import json
 
-#@omp from numba import njit
-#@omp from numba.openmp import openmp_context as openmp
-#@omp from numba.openmp import omp_set_num_threads, omp_get_thread_num, omp_get_num_threads, omp_get_wtime
+from numba import njit
+from numba.openmp import openmp_context as openmp
+from numba.openmp import omp_set_num_threads, omp_get_thread_num, omp_get_num_threads, omp_get_wtime
 
 class KDTreeNode:
     ''' kdtree for efficient searching on high dimension space.'''
@@ -97,6 +97,8 @@ class DBSCAN:
             self.labels = self._fit_naive(X)
         if self.model == 'grid':
             self.labels = self._fit_grid(X)
+        if self.model == 'grid_omp':
+            self.labels = self._fit_grid_omp(X)
         if self.model == 'sklearn':
             _dbscan = sklearn.cluster.DBSCAN(eps=self.eps, min_samples=self.min_samples)
             self.labels = _dbscan.fit_predict(X)
@@ -175,28 +177,6 @@ class DBSCAN:
         start_time = time.time()
         kdTree = construct_kdtree([k for k,v in grid.items()])
         self.log_time("dbsacn_grid-construct kdtree", start_time)
-        
-        def get_neighbor_coords(coords: Tuple[int, int]) -> List[Tuple[int, int]]:
-            '''
-            Naive neighbors searching.
-            Return all the grids within 2.3 grid-unit.
-            @WARN: It's not efficient in high dimension space.
-            '''
-            dim = len(coords)
-            dimOptions = []
-            
-            for index in coords:
-                dimOptions.append([index-2, index-1, index, index+1, index+2])
-                
-            def generate_combinations(list_of_lists):
-                combos = itertools.product(*list_of_lists)
-                tuples = [tuple(combo) for combo in combos]
-                return tuples
-
-            neighbors = generate_combinations(dimOptions)
-            neighbors.remove(coords)
-
-            return neighbors
 
         # - Label core cells
         start_time = time.time()
@@ -311,6 +291,153 @@ class DBSCAN:
                                     #@omp with openmp("critical"):
                                     union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
                             break
+        self.log_time("dbscan_grid-clustering", start_time)
+        
+        start_time = time.time()
+        labels = [find(x) for x in labels]
+        self.log_time("dbscan_grid-find labels", start_time)
+                
+        return labels
+    
+    def _fit_grid_omp(self, X):
+        dimension = X.shape[1]
+        grid_size = self.eps / np.sqrt(dimension)
+
+        # - Assign grids to each cells
+        start_time = time.time()
+        grid = defaultdict(list)
+        numSamples = len(X)
+        ID = {}
+        grid_index = 0
+        with openmp("parallel for"):
+            for i, point in enumerate(X):
+                grid_coords = tuple((point // grid_size).astype(int))
+                with openmp("critical"):
+                    if grid_coords not in grid:
+                        ID[grid_coords] = grid_index
+                        grid_index += 1
+                    grid[grid_coords].append(i)
+        self.log_time("dbsacn_grid-init grid", start_time)
+
+        numGrids = grid_index
+        
+        start_time = time.time()
+        kdTree = construct_kdtree([k for k,v in grid.items()])
+        self.log_time("dbsacn_grid-construct kdtree", start_time)
+
+        # - Label core cells
+        start_time = time.time()
+        core_cells = [False] * numGrids
+        with openmp("parallel for"):
+            for grid_coords, cell_indices in grid.items():
+                # In-grid core cell
+                if len(cell_indices) >= self.min_samples+1:
+                    core_cells[ID[grid_coords]] = True
+                    continue
+
+                # Get neighbors
+                neighbors = []
+                # omp for, critical: neighbors
+                with openmp("for"):
+                    for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
+                        if neighbor_coords == grid_coords:
+                            continue
+                        if neighbor_coords in grid:
+                            with openmp("critical"):
+                                neighbors += grid[neighbor_coords]
+                    if len(cell_indices) + len(neighbors) < self.min_samples+1:
+                        continue
+                
+                # Check number of connections
+                if self.min_samples <= 4:
+                    # Brute-force
+                    with openmp("for"):
+                        for index in cell_indices:
+                            numNeighbors = len(cell_indices)
+                            point = X[index]
+                            with openmp("for"):
+                                for neighbor_index in neighbors:
+                                    neighbor = X[neighbor_index]
+                                    if np.linalg.norm(point - neighbor) <= self.eps:
+                                        numNeighbors += 1
+                                        if numNeighbors >= (self.min_samples+1):
+                                            core_cells[ID[grid_coords]] = True
+                                            break
+                else:
+                    # KD Tree approach
+                    neighbor_kdtree = construct_kdtree(X[neighbors])
+                    with openmp("for"):
+                        for index in cell_indices:
+                            point = X[index]
+                            numNeighbors = len(cell_indices) + len(search_kdtree(neighbor_kdtree, point, self.eps))
+                            if numNeighbors >= (self.min_samples+1):
+                                core_cells[ID[grid_coords]] = True
+                                break
+        self.log_time("dbscan_grid-label core cells", start_time)
+        
+        # - Clustering
+        start_time = time.time()
+        labels = np.full(X.shape[0], -1)
+        
+        # Union and Find for clustering
+        D = {}
+        def find(x):
+            while x in D and x != D[x]:
+                x = D[x]
+            if x not in D:
+                D[x] = x
+            return x
+        def union(a, b):
+            a, b = find(a), find(b)
+            D[a] = min(a, b)
+            D[b] = min(a, b)
+
+        cluster_id = 0
+        with openmp("parallel for"):
+            for grid_coords, cell_indices in grid.items():
+                # Skip empty cells
+                if not cell_indices:
+                    continue
+                
+                # Skip non-core cells
+                if core_cells[ID[grid_coords]] == False:
+                    continue 
+
+                # Assign cluster Id
+                if labels[cell_indices[0]] == -1:
+                    labels[cell_indices] = cluster_id
+                    cluster_id += 1
+
+                # Expend cell connections based on Bichromatic Closest Pair(BCP)
+                with openmp("for"):
+                    for neighbor_coords in search_kdtree(kdTree, grid_coords, 2.3):
+                        if neighbor_coords not in grid:
+                            continue
+                        if self.min_samples <= 4:
+                            for neighbor_index in grid[neighbor_coords]:
+                                neighbor = X[neighbor_index]
+                                for index in cell_indices:
+                                    point = X[index]
+                                    if np.linalg.norm(point - neighbor) <= self.eps:
+                                        if labels[grid[neighbor_coords][0]] == -1:
+                                            labels[grid[neighbor_coords]] = labels[cell_indices[0]]
+                                        else:
+                                            if ID[grid_coords] > ID[neighbor_coords]:
+                                                with openmp("critical"):
+                                                    union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                                        break
+                        else:
+                            neighbor_kdtree = construct_kdtree(X[grid[neighbor_coords]])
+                            for index in cell_indices:
+                                point = X[index]
+                                if search_kdtree(neighbor_kdtree, point, self.eps):
+                                    if labels[grid[neighbor_coords][0]] == -1:
+                                        labels[grid[neighbor_coords]] = labels[cell_indices[0]]
+                                    else:
+                                        if ID[grid_coords] > ID[neighbor_coords]:
+                                            with openmp("critical"):
+                                                union(labels[cell_indices[0]], labels[grid[neighbor_coords][0]])
+                                    break
         self.log_time("dbscan_grid-clustering", start_time)
         
         start_time = time.time()
