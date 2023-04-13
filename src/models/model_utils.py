@@ -17,7 +17,7 @@ def get_model(algorithm="kmeans", n_clusters=10, max_iter=10, nthreads=1, omp=Fa
         else:
             print(f'Algorithm: [{algorithm}] not support')
     elif prefix == "dbscan":
-        print(f'Loading model [{algorithm}] with [{eps}] eps, [{min_samples}] min samples, and [{nthreads}] threads')
+        # move print to constructor
         if algorithm == "dbscan_grid":
             model = DBSCAN(model = 'grid', eps=eps, min_samples=min_samples)
         elif algorithm == "dbscan_grid_omp":
