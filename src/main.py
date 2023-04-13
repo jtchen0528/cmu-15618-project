@@ -33,8 +33,10 @@ if __name__ == "__main__":
     # Fit centroids to dataset
     model = models.get_model(algorithm=args.algorithm, n_clusters=args.clusters, max_iter=args.iteration, nthreads = args.nthreads, omp = args.omp)
     model.fit(X_train)
-    # model.plot_centroids(output_dir)
-    model.plot_2d_centroids(output_dir, X_test, Y_test)
+    
+    # - If model is centroid-based
+    if hasattr(model, 'plot_2d_centroids'):
+        model.plot_2d_centroids(output_dir, X_test, Y_test)
     model.show_metrics(X_test, Y_test, output_dir)
     model.write_time_log(output_dir)
 
