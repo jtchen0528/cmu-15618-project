@@ -17,6 +17,9 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=15618, help='seed of randomness')
     parser.add_argument('--pca', type=int, default=0, help='PCA or not, [0|1]')
     parser.add_argument('--omp', type=int, default=0, help='OMP or not, [0|1]')
+    parser.add_argument('--eps', type=float, default=0.5, help='distance threshold in dbscan. float. > 0')
+    parser.add_argument('--min_samples', type=int, default=1, help='cluster size threshold in dbscan. int. > 1')
+    
 
     args = parser.parse_args()
     dirname = f'{args.algorithm}_omp{args.omp}_{args.nthreads}threads_' + \
@@ -31,10 +34,27 @@ if __name__ == "__main__":
     (X_train, Y_train), (X_test, Y_test) = datasets.get_dataset(dataset = args.dataset, seed=args.seed, compress_data=args.pca)
 
     # Fit centroids to dataset
-    model = models.get_model(algorithm=args.algorithm, n_clusters=args.clusters, max_iter=args.iteration, nthreads = args.nthreads, omp = args.omp)
-    model.fit(X_train)
-    # model.plot_centroids(output_dir)
-    model.plot_2d_centroids(output_dir, X_test, Y_test)
+    model = models.get_model(algorithm=args.algorithm, 
+                             n_clusters=args.clusters, 
+                             max_iter=args.iteration, 
+                             nthreads = args.nthreads, 
+                             omp = args.omp,
+                             eps = args.eps,
+                             min_samples = args.min_samples)
+    
+    # Handle the invalid usage
+    if model == None:
+        print('Program exit abnormally.')
+        exit()
+    
+    # dbscan is an unsupervise learning without training phase
+    if args.algorithm[:6] != "dbscan":
+        model.fit(X_train)
+    
+    # Plot the centroid if model is centroid-based
+    if hasattr(model, 'plot_2d_centroids'):
+        model.plot_2d_centroids(output_dir, X_test, Y_test)
+    
     model.show_metrics(X_test, Y_test, output_dir)
     model.write_time_log(output_dir)
 
