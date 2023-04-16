@@ -41,7 +41,7 @@ def sum_centroids_dists(datas):
 
 
 def get_data_by_key(rdd, key):
-    return rdd.filter(lambda x: x[0] == key).map(lambda x: x[1]).collect()
+    return rdd.filter(lambda x: x[0] == key).map(lambda x: x[1]).collect()[0]
 
 
 if __name__ == "__main__":
@@ -86,7 +86,8 @@ if __name__ == "__main__":
         X_train_centroids_diffs_sum = X_train_centroids_diffs.mapPartition(sum_centroids_dists).sum()
         new_centroids_probs = X_train_centroids_diffs.map(lambda x: x / X_train_centroids_diffs_sum).collect()
         new_centroid_idx = np.random.choice(range(dataset_size), size=1, p=new_centroids_probs)[0]
-        centroids += []
-
+        new_centroid = get_data_by_key(X_train_rdd, new_centroid_idx)
+        centroids += [new_centroid_idx]
+        centroids_bc = sc.broadcast(centroids)
 
     sc.stop()
