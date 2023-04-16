@@ -57,6 +57,11 @@ if __name__ == "__main__":
     if hasattr(model, 'plot_2d_centroids'):
         model.plot_2d_centroids(output_dir, X_test, Y_test)
     
+    # Plot the centroid if model is centroid-based
+    if hasattr(model, 'plot_centroids'):
+        model.plot_centroids(output_dir)
+    
+
     model.show_metrics(X_test, Y_test, output_dir)
     model.write_time_log(output_dir)
 

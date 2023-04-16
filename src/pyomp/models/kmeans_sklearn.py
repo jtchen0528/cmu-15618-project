@@ -53,9 +53,7 @@ class KMeans_sklearn:
         images *= 255
         images = images.astype(np.uint8)
 
-        edge = int(math.sqrt(self.n_clusters))
-
-        fig, axs = plt.subplots(edge, edge, figsize = (20, 20))
+        fig, axs = plt.subplots(2, 5, figsize = (10, 4))
         plt.gray()
 
         for i, ax in enumerate(axs.flat):
