@@ -118,7 +118,7 @@ if __name__ == "__main__":
     X_train_rdd = sc.parallelize(X_train, nthreads)
 
     X_train_rdd = X_train_rdd.zipWithIndex().map(lambda x: (x[1], x[0])).partitionBy(nthreads, partitionFunc=lambda x: x % nthreads)
-    X_train_rdd.persist(StorageLevel.DISK_ONLY)
+    X_train_rdd.persist(StorageLevel.MEMORY_AND_DISK)
 
     start_time = time.time()
 
