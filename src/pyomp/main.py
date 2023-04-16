@@ -8,8 +8,8 @@ import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='mnist', help='dataset [mnist]')
-    parser.add_argument('--algorithm', type=str, default='kmeans', help='clustering algorithm [kmeans|dbscan|kmeans_sklearn]')
+    parser.add_argument('--dataset', type=str, default='mnist', help='dataset [mnist|iris]')
+    parser.add_argument('--algorithm', type=str, default='kmeans', help='clustering algorithm [kmeans|kmeans_serial|kmeans_sklearn|dbscan_grid|dbscan_grid_omp|dbscan_sklearn]')
     parser.add_argument('--nthreads', type=int, default=1, help='number of threads to run')
     parser.add_argument('--clusters', type=int, default=10, help='number of clusters')
     parser.add_argument('--iteration', type=int, default=10, help='iteration of clustering')

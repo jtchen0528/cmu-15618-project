@@ -82,6 +82,7 @@ class DBSCAN:
         print(f'Initialize DBSCAN-{self.model} with eps:{self.eps} min_samples:{self.min_samples}')
     
     def log_time(self, entry_name, start_time):
+        print(f'Logging {entry_name}')
         self.time_log[entry_name] = time.time() - start_time
     
     def fit(self, X):
@@ -124,6 +125,7 @@ class DBSCAN:
         start_time = time.time()
         core_cells = [False] * numGrids
         for grid_coords, cell_indices in grid.items():
+            print(cell_indices)
             # In-grid core cell
             if len(cell_indices) >= self.min_samples+1:
                 core_cells[ID[grid_coords]] = True
@@ -181,6 +183,7 @@ class DBSCAN:
 
         cluster_id = 0
         for grid_coords, cell_indices in grid.items():
+            print(cell_indices)
             # Skip non-core cells
             if core_cells[ID[grid_coords]] == False:
                 continue 
@@ -223,6 +226,7 @@ class DBSCAN:
                 
         return labels
     
+    @njit
     def _fit_grid_omp(self, X):
         omp_set_num_threads(self.n_threads)
         print(f'OMP actual #threads: {omp_get_thread_num()}')

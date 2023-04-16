@@ -3,7 +3,7 @@ from sklearn.datasets import load_iris as lr
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-def load_iris(path = "data/iris_dataset.npz", seed = 15618, compress_data = False):
+def load_iris(path = "../data/iris_dataset.npz", seed = 15618, compress_data = False):
     
     if path != None:
         with np.load(path, allow_pickle=True) as f:
