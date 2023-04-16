@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument('--omp', type=int, default=0, help='OMP or not, [0|1]')
     parser.add_argument('--eps', type=float, default=0.5, help='distance threshold in dbscan. float. > 0')
     parser.add_argument('--min_samples', type=int, default=1, help='cluster size threshold in dbscan. int. > 1')
+    parser.add_argument('--init_centroids_path', type=str, default='outputs', help='path for initialized kmeans centroid')
     
 
     args = parser.parse_args()
@@ -40,7 +41,8 @@ if __name__ == "__main__":
                              nthreads = args.nthreads, 
                              omp = args.omp,
                              eps = args.eps,
-                             min_samples = args.min_samples)
+                             min_samples = args.min_samples,
+                             init_centroids_path = args.init_centroids_path)
     
     # Handle the invalid usage
     if model == None:

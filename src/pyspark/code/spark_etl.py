@@ -116,6 +116,7 @@ if __name__ == "__main__":
 
     centroids = get_data_by_key(X_train_rdd, init_centroid_idx)
     centroids = [centroids[1]]
+    prev_centroids = np.array(centroids)
     centroids_bc = sc.broadcast(centroids)
 
     for _ in range(clusters-1):
@@ -128,18 +129,15 @@ if __name__ == "__main__":
         new_centroids = centroids_bc.value + [new_centroid[1]]
         centroids_bc = sc.broadcast(new_centroids)
 
-    centroids_np = np.array(centroids_bc.value)
-    np.savez(os.path.join(output_dir, f'centroids'), centroids_np)
-
     current_iteration = 0
-    while current_iteration < iteration:
+    centroids = np.array(centroids_bc.value)
+
+    while np.not_equal(centroids, prev_centroids).any() and current_iteration < iteration:
         sorted_points = X_train_rdd.mapPartitions(iter_kmeans_serial)
-        write_rdd(sorted_points, f'sorted_points_{current_iteration}', output_dir)
         old_centroids = centroids_bc.value
         new_centroids = []
         for i in range(clusters):
             cluster_datapoints_indices = sorted_points.filter(lambda x: x[1] == i).map(lambda x: x[0]).collect()
-            write_rdd(cluster_datapoints_indices, f'cluster_datapoints_indices_{current_iteration}_{i}', output_dir)
 
             if len(cluster_datapoints_indices) > 0:
                 cluster_datapoints = X_train_rdd.filter(lambda x: x[0] in cluster_datapoints_indices)
@@ -150,10 +148,13 @@ if __name__ == "__main__":
             else:
                 new_centroids.append(old_centroids[i])
         centroids_bc = sc.broadcast(new_centroids)
+        centroids = np.array(centroids_bc.value)
 
-        centroids_np = np.array(centroids_bc.value)
-        np.savez(os.path.join(output_dir, f'centroids_{current_iteration}'), centroids_np)
+        np.savez(os.path.join(output_dir, f'centroids_{current_iteration}'), centroids)
 
         current_iteration += 1
+
+    centroids_np = np.array(centroids_bc.value)
+    np.savez(os.path.join(output_dir, f'centroids_final'), centroids_np)
 
     sc.stop()
