@@ -62,6 +62,23 @@ def get_data_by_key(rdd, key):
     return rdd.filter(lambda x: x[0] == key).collect()[0]
 
 
+def iter_kmeans_serial(datas):
+    centroids = np.array(centroids_bc.value)
+    sorted_points = []
+    for data in datas:
+        dists = euclidean_serial(centroids, np.array(data[1]))
+        centroid_idx = np.argmin(dists)
+        sorted_points.append((data[0], centroid_idx))
+    
+    return sorted_points
+
+
+def calculate_new_clusters(datas):
+    datapoints = np.array([data[1] for data in datas])
+    datapoints_mean = np.mean(datapoints, axis=0).tolist()
+    return [datapoints_mean]
+
+
 if __name__ == "__main__":
     """Drive main function."""  # noqa: E501
     dataset = sys.argv[1]
@@ -93,7 +110,7 @@ if __name__ == "__main__":
     X_train_rdd = sc.parallelize(X_train, nthreads)
 
     X_train_rdd = X_train_rdd.zipWithIndex().map(lambda x: (x[1], x[0])).partitionBy(nthreads, partitionFunc=lambda x: x % nthreads)
-    X_train_rdd.persist(StorageLevel.MEMORY_AND_DISK)
+    X_train_rdd.persist(StorageLevel.DISK_ONLY)
 
     init_centroid_idx = random.choice(range(dataset_size))
 
@@ -110,5 +127,33 @@ if __name__ == "__main__":
         new_centroid = get_data_by_key(X_train_rdd, new_centroid_idx)
         new_centroids = centroids_bc.value + [new_centroid[1]]
         centroids_bc = sc.broadcast(new_centroids)
+
+    centroids_np = np.array(centroids_bc.value)
+    np.savez(os.path.join(output_dir, f'centroids'), centroids_np)
+
+    current_iteration = 0
+    while current_iteration < iteration:
+        sorted_points = X_train_rdd.mapPartitions(iter_kmeans_serial)
+        write_rdd(sorted_points, f'sorted_points_{current_iteration}', output_dir)
+        old_centroids = centroids_bc.value
+        new_centroids = []
+        for i in range(clusters):
+            cluster_datapoints_indices = sorted_points.filter(lambda x: x[1] == i).map(lambda x: x[0]).collect()
+            write_rdd(cluster_datapoints_indices, f'cluster_datapoints_indices_{current_iteration}_{i}', output_dir)
+
+            if len(cluster_datapoints_indices) > 0:
+                cluster_datapoints = X_train_rdd.filter(lambda x: x[0] in cluster_datapoints_indices)
+                cluster_datapoints_means = cluster_datapoints.mapPartitions(calculate_new_clusters).collect()
+                # cluster_datapoints_means = cluster_datapoints.map(lambda x: x[1]).collect()
+                new_centroid = np.mean(np.array(cluster_datapoints_means), axis=0)
+                new_centroids.append(new_centroid)
+            else:
+                new_centroids.append(old_centroids[i])
+        centroids_bc = sc.broadcast(new_centroids)
+
+        centroids_np = np.array(centroids_bc.value)
+        np.savez(os.path.join(output_dir, f'centroids_{current_iteration}'), centroids_np)
+
+        current_iteration += 1
 
     sc.stop()
