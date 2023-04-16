@@ -14,5 +14,5 @@ flintrock --config config.yaml run-command SparkCluster "sudo yum update -y && s
 ```
 
 ```
-./run.sh mnist kmeans 2 10 2 outputs 15618 0 0
+./run.sh mnist kmeans 2 10 2 outputs 15618 0
 ```

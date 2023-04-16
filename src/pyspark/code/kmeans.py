@@ -10,6 +10,8 @@ import datasets
 
 import numpy as np
 import random
+import time
+import json
 
 def write_rdd(rdd, outfile, output_dir):
     """Write RDD to text file."""
@@ -79,6 +81,11 @@ def calculate_new_clusters(datas):
     return [datapoints_mean]
 
 
+def log_time(time_log, entry_name, start_time):
+    time_log[entry_name] = time.time() - start_time
+    return time_log
+
+
 if __name__ == "__main__":
     """Drive main function."""  # noqa: E501
     dataset = sys.argv[1]
@@ -89,13 +96,14 @@ if __name__ == "__main__":
     output_dir = sys.argv[6]
     seed = int(sys.argv[7])
     pca = int(sys.argv[8])
-    omp = int(sys.argv[9])
 
-    dirname = f'{algorithm}_omp{omp}_{nthreads}threads_' + \
+    dirname = f'{algorithm}_{nthreads}threads_' + \
                 f'{dataset}_pca{pca}_{clusters}cluster_{iteration}iter'
     os.makedirs(output_dir, exist_ok=True)
     output_dir = os.path.join(output_dir, dirname)
     os.makedirs(output_dir, exist_ok=True)
+
+    time_log = {}
 
     conf = pyspark.SparkConf().setAppName("CommonCrawlProcessor")
     conf.set("spark.rpc.message.maxSize", "1024")
@@ -111,6 +119,8 @@ if __name__ == "__main__":
 
     X_train_rdd = X_train_rdd.zipWithIndex().map(lambda x: (x[1], x[0])).partitionBy(nthreads, partitionFunc=lambda x: x % nthreads)
     X_train_rdd.persist(StorageLevel.DISK_ONLY)
+
+    start_time = time.time()
 
     init_centroid_idx = random.choice(range(dataset_size))
 
@@ -129,12 +139,24 @@ if __name__ == "__main__":
         new_centroids = centroids_bc.value + [new_centroid[1]]
         centroids_bc = sc.broadcast(new_centroids)
 
+    time_log = log_time(time_log, "centroid_init", start_time)
+
     current_iteration = 0
     centroids = np.array(centroids_bc.value)
 
+    start_time = time.time()
+
     while np.not_equal(centroids, prev_centroids).any() and current_iteration < iteration:
+        
+        iter_data_start_time = time.time()
+        
         sorted_points = X_train_rdd.mapPartitions(iter_kmeans_serial)
-        old_centroids = centroids_bc.value
+        
+        time_log = log_time(time_log, f'iter_data_{current_iteration}', iter_data_start_time)
+
+        iter_start_time = time.time()
+        prev_centroids_list = centroids_bc.value
+        prev_centroids = np.array(prev_centroids_list)
         new_centroids = []
         for i in range(clusters):
             cluster_datapoints_indices = sorted_points.filter(lambda x: x[1] == i).map(lambda x: x[0]).collect()
@@ -142,19 +164,23 @@ if __name__ == "__main__":
             if len(cluster_datapoints_indices) > 0:
                 cluster_datapoints = X_train_rdd.filter(lambda x: x[0] in cluster_datapoints_indices)
                 cluster_datapoints_means = cluster_datapoints.mapPartitions(calculate_new_clusters).collect()
-                # cluster_datapoints_means = cluster_datapoints.map(lambda x: x[1]).collect()
                 new_centroid = np.mean(np.array(cluster_datapoints_means), axis=0)
                 new_centroids.append(new_centroid)
             else:
-                new_centroids.append(old_centroids[i])
+                new_centroids.append(prev_centroids_list[i])
         centroids_bc = sc.broadcast(new_centroids)
-        centroids = np.array(centroids_bc.value)
+        centroids = np.array(new_centroids)
 
-        np.savez(os.path.join(output_dir, f'centroids_{current_iteration}'), centroids)
+        time_log = log_time(time_log, f'iter_{current_iteration}', iter_start_time)
 
         current_iteration += 1
 
+    time_log = log_time(time_log, "total", start_time)
+
     centroids_np = np.array(centroids_bc.value)
     np.savez(os.path.join(output_dir, f'centroids_final'), centroids_np)
+
+    with open(os.path.join(output_dir, "time_log.txt"), "w") as f:
+        f.write(json.dumps(time_log, indent = 4))
 
     sc.stop()

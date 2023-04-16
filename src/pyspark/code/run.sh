@@ -9,7 +9,7 @@ echo "Hadoop homedir: $HADOOP_HOME"
 
 SPARK_SUBMIT="spark-submit"
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-ETL_SCRIPT="$PROJECT_DIR/spark_etl.py"
+ETL_SCRIPT="$PROJECT_DIR/kmeans.py"
 # -------- END: DON'T CHANGE --------
 
 master_url=`curl -s http://169.254.169.254/latest/meta-data/public-hostname`
@@ -28,5 +28,4 @@ $SPARK_SUBMIT \
     $5 \
     $6 \
     $7 \
-    $8 \
-    $9
+    $8

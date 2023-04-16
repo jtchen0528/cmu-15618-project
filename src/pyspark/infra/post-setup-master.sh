@@ -108,6 +108,8 @@ setup() {
 
   format_and_mount_disk /dev/nvme1n1
 
+  $SPARK_HOME/sbin/start-history-server.sh
+
   red "DON'T FORGET TO DELETE THE DATA VOLUME MANUALLY AFTER YOU'RE DONE WITH THE PROJECT"
 }
 

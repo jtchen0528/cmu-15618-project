@@ -26,7 +26,7 @@ providers:
     instance-initiated-shutdown-behavior: terminate
 
 launch:
-    num-slaves: 4
+    num-slaves: 12
     install-hdfs: True
     install-spark: True
 

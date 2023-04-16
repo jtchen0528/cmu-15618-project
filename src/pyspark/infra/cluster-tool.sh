@@ -34,6 +34,8 @@ setup_cluster() {
   scp -o StrictHostKeyChecking=no -i $PEM_PATH $SCP_PAYLOAD $SPARK_MASTER:~
   ssh -o StrictHostKeyChecking=no -i $PEM_PATH $SPARK_MASTER "~/$REMOTE_SETUP_SCRIPT --setup"
 
+  flintrock --config config.yaml run-command SparkCluster "sudo yum update -y && sudo yum install git libcurl python3 -y && pip3 install --user warc3-wet beautifulsoup4 requests numpy scikit-learn"
+
   mkdir -p ~/.ssh
   echo -e "Host sc\n\tHostName `cat ~/.spark_master`\n\tUser ec2-user\n\tIdentityFile `readlink -e $PEM_PATH`" > ~/.ssh/config
 
