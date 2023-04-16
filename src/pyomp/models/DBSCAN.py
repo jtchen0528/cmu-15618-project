@@ -422,7 +422,6 @@ class DBSCAN:
         self.labels = None
         self.time_log = {}
         self.n_threads = n_threads
-        self.omp = omp
         print(f'Initialize DBSCAN-{self.model} with eps:{self.eps} min_samples:{self.min_samples}')
     
     def log_time(self, entry_name, start_time):
@@ -432,8 +431,8 @@ class DBSCAN:
     def fit(self, X):
         if self.model == 'grid':
             self.labels = self._fit_grid(X)
-        if self.model == 'grid_parallel':
-            self.labels = self._fit_grid_parallel(X)
+        if self.model == 'grid_mp':
+            self.labels = self._fit_grid_mp(X)
         if self.model == 'sklearn':
             _dbscan = sklearn.cluster.DBSCAN(eps=self.eps, min_samples=self.min_samples)
             self.labels = _dbscan.fit_predict(X)
@@ -569,7 +568,7 @@ class DBSCAN:
                 
         return labels
     
-    def _fit_grid_parallel(self, X):
+    def _fit_grid_mp(self, X):
         dimension = X.shape[1]
         grid_size = self.eps / np.sqrt(dimension)
         eps_coverage = np.sqrt(dimension)+1
