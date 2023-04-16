@@ -15,7 +15,7 @@ providers:
     ami: ami-0aeeebd8d2ab47354
     user: ec2-user
     region: us-east-1
-    availability-zone: us-east-1a # @STUDENTS: CHOOSE AVAILABILITY ZONE IF NECESSARY
+    availability-zone: us-east-1a
     instance-type: t3.large
     spot-price: 1
     tags:
@@ -26,7 +26,7 @@ providers:
     instance-initiated-shutdown-behavior: terminate
 
 launch:
-    num-slaves: 2
+    num-slaves: 4
     install-hdfs: True
     install-spark: True
 

@@ -18,9 +18,15 @@ def write_rdd(rdd, outfile, output_dir):
     print(f'writing {filename}\n')
     with open(filename, 'w') as writer:
         if type(rdd) is not list:
-            rdd = rdd.collect()
-        for x in rdd:
-            writer.write(str(x) + "\n")
+            try:
+                rdd = rdd.collect()
+            except:
+                pass
+        if type(rdd) is list:
+            for x in rdd:
+                writer.write(str(x) + "\n")
+        else:
+            writer.write(str(rdd) + "\n")
         writer.close()
 
 
@@ -29,19 +35,31 @@ def euclidean_serial(point, data):
 
 
 def data_centroids_diff(datas):
-    X_train = np.array([data[1] for data in datas])
-    dists = np.sum([euclidean_serial(centroid, X_train) for centroid in centroids_bc], axis=0)
+    X_train = []
+    ids = []
+    for data in datas:
+        ids.append(data[0])
+        X_train.append(data[1])
+    X_train = np.array(X_train)
+    ids = np.array(ids)
+    dists = np.sum([euclidean_serial(centroid, X_train) for centroid in centroids_bc.value], axis=0)
     dists = dists.tolist()
-    return dists
+    dists_with_id = []
+    i = 0
+    for dist in dists:
+        dists_with_id.append((ids[i], dist))
+        i += 1
+    
+    return dists_with_id
 
 def sum_centroids_dists(datas):
-    dists = np.array([data[1] for data in datas])
+    dists = np.array(datas)
     dists = np.sum(dists).tolist()
     return dists
 
 
 def get_data_by_key(rdd, key):
-    return rdd.filter(lambda x: x[0] == key).map(lambda x: x[1]).collect()[0]
+    return rdd.filter(lambda x: x[0] == key).collect()[0]
 
 
 if __name__ == "__main__":
@@ -74,20 +92,23 @@ if __name__ == "__main__":
     dataset_size = len(X_train)
     X_train_rdd = sc.parallelize(X_train, nthreads)
 
-    X_train_rdd = X_train_rdd.zipWithIndex().map(lambda x: (x[1], x[0])).partitionBy(lambda x: x % nthreads)
-    write_rdd(X_train_rdd, "X_train_rdd", output_dir)
+    X_train_rdd = X_train_rdd.zipWithIndex().map(lambda x: (x[1], x[0])).partitionBy(nthreads, partitionFunc=lambda x: x % nthreads)
+    X_train_rdd.persist(StorageLevel.MEMORY_AND_DISK)
 
-    init_centroid_idx = random.choice(range(dataset_size))[0]
+    init_centroid_idx = random.choice(range(dataset_size))
+
     centroids = get_data_by_key(X_train_rdd, init_centroid_idx)
+    centroids = [centroids[1]]
     centroids_bc = sc.broadcast(centroids)
 
     for _ in range(clusters-1):
-        X_train_centroids_diffs = X_train_rdd.mapPartition(data_centroids_diff)
-        X_train_centroids_diffs_sum = X_train_centroids_diffs.mapPartition(sum_centroids_dists).sum()
-        new_centroids_probs = X_train_centroids_diffs.map(lambda x: x / X_train_centroids_diffs_sum).collect()
+        X_train_centroids_diffs = X_train_rdd.mapPartitions(data_centroids_diff)
+        X_train_centroids_diffs_sum = X_train_centroids_diffs.map(lambda x: x[1]).sum()
+        new_centroids_probs = X_train_centroids_diffs.map(lambda x: (x[0], x[1] / X_train_centroids_diffs_sum)).sortByKey().collect()
+        new_centroids_probs = [prob[1] for prob in new_centroids_probs]
         new_centroid_idx = np.random.choice(range(dataset_size), size=1, p=new_centroids_probs)[0]
         new_centroid = get_data_by_key(X_train_rdd, new_centroid_idx)
-        centroids += [new_centroid_idx]
-        centroids_bc = sc.broadcast(centroids)
+        new_centroids = centroids_bc.value + [new_centroid[1]]
+        centroids_bc = sc.broadcast(new_centroids)
 
     sc.stop()
