@@ -1,0 +1,2 @@
+Homogeneity: 0.5539334061717442
+Accuracy: 0.6462
