@@ -8,10 +8,9 @@
 #include <limits>
 #include "point.h"
 #include "kdtree.h"
+#include <set>
 
 class Point;
-
-size_t Point::dimensionality = 0;
 
 std::vector<Point> normalize(const std::vector<Point>& points) {
     std::vector<Point> result(points.size());
@@ -109,6 +108,54 @@ std::vector<int> naive_dbscan(std::vector<Point>& points, double eps, int minPts
     return cluster;
 }
 
+std::vector<int> kd_tree_dbscan(std::vector<Point>& points, double eps, int minPts) {
+    std::set<Point> visited_points;
+    std::vector<int> cluster(points.size(), -1);
+    int clusterIdx = 0;
+
+    auto kdtree(std::make_unique<KDtree>(KDtree()));
+    kdtree->buildTree(points);
+
+    for (int i = 0; i < points.size(); i++) {
+        if (visited_points.find(points[i]) != visited_points.end()) continue;
+
+        visited_points.insert(points[i]);
+        std::vector<Point> neighbors = kdtree->search(points[i], eps);
+        if (neighbors.size() < minPts) {
+            cluster[i] = -1;
+        } else {
+            cluster[i] = clusterIdx;
+            for (auto & neighbor : neighbors) {
+                if (visited_points.find(neighbor) != visited_points.end()) {
+                    visited_points.insert(neighbor);
+                    std::vector<Point> subNeighbors = kdtree->search(neighbor, eps);
+                    if (subNeighbors.size() >= minPts) {
+                        neighbors.insert(neighbors.end(), subNeighbors.begin(), subNeighbors.end());
+                    }
+                }
+                if (cluster[neighbor.id] == -1) {
+                    cluster[neighbor.id] = clusterIdx;
+                }
+            }
+            clusterIdx++;
+        }
+    }
+
+    std::cout << "Clusters: " << clusterIdx << std::endl;
+    for (int i = 0; i < points.size(); i++) {
+        std::cout << "(";
+        for (int j = 0; j < points[i].coords.size(); j++) {
+            std::cout << points[i].coords[j];
+            if (j < points[i].coords.size() - 1) {
+                std::cout << ", ";
+            }
+        }
+        std::cout << "): " << cluster[i] << std::endl;
+    }
+
+    return cluster;
+}
+
 std::vector<Point> parse(std::string filename) 
 {
     std::ifstream infile(filename);
@@ -118,6 +165,7 @@ std::vector<Point> parse(std::string filename)
 
     std::string line{};
     std::vector<Point> vupp{};
+    int idx{0};
     while (std::getline(infile, line)) {
         std::istringstream iss(line);
         std::vector<double> values{};
@@ -134,7 +182,7 @@ std::vector<Point> parse(std::string filename)
         }
         int label = static_cast<int>(values.back());
         values.pop_back();
-        Point p = Point(label, values);
+        Point p = Point(label, values, idx++);
         vupp.push_back(p);
     }
 
@@ -155,6 +203,6 @@ int main(int argc, char* argv[]) {
 
 
     auto points(normalize(parse("iris_dataset.csv")));
-    auto clusters(naive_dbscan(points, eps, minPts));
+    auto clusters(kd_tree_dbscan(points, eps, minPts));
     return 0;
 }
