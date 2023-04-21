@@ -5,13 +5,44 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <limits>
+#include "point.h"
+#include "kdtree.h"
 
-class Point {
-public:
-    Point(const int _label, const std::vector<double> vd) : label{_label}, coords{vd} {};
-    int label;
-    std::vector<double> coords;
-};
+class Point;
+
+size_t Point::dimensionality = 0;
+
+std::vector<Point> normalize(const std::vector<Point>& points) {
+    std::vector<Point> result(points.size());
+    if (points.empty()) {
+        return result;
+    }
+
+    const int num_dimensions = points[0].size();
+
+    // Find the maximum and minimum values for each dimension
+    std::vector<double> minvd(num_dimensions, std::numeric_limits<double>::min());
+    std::vector<double> maxvd(num_dimensions, std::numeric_limits<double>::max());
+    Point max_values(-1, minvd);
+    Point min_values(-1, maxvd);
+    for (const auto& point : points) {
+        for (int i = 0; i < num_dimensions; i++) {
+            max_values.coords[i] = std::max(max_values.coords[i], point.coords[i]);
+            min_values.coords[i] = std::min(min_values.coords[i], point.coords[i]);
+        }
+    }
+
+    // Normalize the data points
+    for (int i = 0; i < points.size(); i++) {
+        result[i].coords.resize(num_dimensions);
+        for (int j = 0; j < num_dimensions; j++) {
+            result[i].coords[j] = (points[i].coords[j] - min_values.coords[j]) / (max_values.coords[j] - min_values.coords[j]);
+        }
+    }
+
+    return result;
+}
 
 double euclideanDistance(Point p, Point q) {
     double distance = 0.0;
@@ -32,7 +63,7 @@ std::vector<int> rangeQuery(std::vector<Point>& points, int p, double eps) {
 }
 
 
-std::vector<int> dbscan(std::vector<Point>& points, double eps, int minPts) {
+std::vector<int> naive_dbscan(std::vector<Point>& points, double eps, int minPts) {
     std::vector<int> visited(points.size(), 0);
     std::vector<int> cluster(points.size(), -1);
     int clusterIdx = 0;
@@ -105,15 +136,25 @@ std::vector<Point> parse(std::string filename)
         values.pop_back();
         Point p = Point(label, values);
         vupp.push_back(p);
-        std::cout << "\n";
     }
 
     infile.close();
     return vupp;
 }
 
-int main() {
-    auto points(parse("iris_dataset.csv"));
-    auto clusters(dbscan(points, 0.5, 5));
+int main(int argc, char* argv[]) {
+
+    double eps{0.5};
+    int minPts{5};
+    if (argc == 3)
+    {
+        eps = std::stof(argv[1]);
+        minPts = std::stoi(argv[2]);
+    }
+    std::cout << "eps: " << eps << "  minPts: " << minPts << std::endl;
+
+
+    auto points(normalize(parse("iris_dataset.csv")));
+    auto clusters(naive_dbscan(points, eps, minPts));
     return 0;
 }
