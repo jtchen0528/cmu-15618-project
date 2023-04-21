@@ -8,6 +8,8 @@
 class KDtree {
 public:
     KDtree();
+    KDtree(KDtree const& other)=delete;
+    KDtree& operator=(KDtree const& other)=delete;
     void buildTree(std::vector<Point> points);
     std::vector<Point> search(const Point& target_point, const double distance);
 private:
