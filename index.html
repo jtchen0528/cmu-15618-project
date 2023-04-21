@@ -8,7 +8,8 @@
 
 <head>
     <!-- Global site tag (gtag.js) - Google Analytics -->
-    <title>15-618 Final Project: Supercomputer or Cloud Computing: Large-scale, High-computation Data Clustering Tasks with PyOMP on single machine and PySpark with AWS EC2 instances</title>
+    <title>15-618 Final Project: Supercomputer or Cloud Computing: Large-scale, High-computation Data Clustering Tasks
+        with PyOMP on single machine and PySpark with AWS EC2 instances</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
@@ -27,12 +28,13 @@
 
         <!-- Header -->
         <header id="header" class="alt">
-            <h1>Supercomputer or Cloud Computing: Large-scale, High-computation Data Clustering Tasks with PyOMP on single machine and PySpark with AWS EC2 instances</h1>
+            <h1>Supercomputer or Cloud Computing: Large-scale, High-computation Data Clustering Tasks with PyOMP on
+                single machine and PySpark with AWS EC2 instances</h1>
             <h3>15-618 Parallel Computer Architecture and Programming, Spring 2023, Final Project</h3>
             <h4>Jhao-Ting Chen (jhaoting)
                 <a href="mailto:jhaoting@cmu.edu" class="icon fa-solid fa-envelope"><span class="label"></span></a>
                 , Wei-Lun Chiu (weilunc)
-                <a href="mailto:weilunc@cmu.edu" class="icon fa-solid fa-envelope"><span class="label"></span>  </a>  
+                <a href="mailto:weilunc@cmu.edu" class="icon fa-solid fa-envelope"><span class="label"></span> </a>
             </h4>
         </header>
 
@@ -40,19 +42,206 @@
         <nav id="nav">
             <ul>
                 <li><a href="#abstract" class="active">Abstract</a></li>
+                <li><a href="#background" class="active">Background</a></li>
+                <li><a href="#results" class="active">Results</a></li>
+                <li><a href="https://www.github.com/jtchen0528/cmu-15618-project">Codes</a></li>
                 <li><a href="/cmu-15618-project/assets/files/proposal.pdf">Proposal</a></li>
+                <li><a href="/cmu-15618-project/assets/files/final_report.pdf">Final Report</a></li>
+                <li><a href="/cmu-15618-project/assets/files/poster.pdf">Poster</a></li>
             </ul>
         </nav>
 
         <!-- Main -->
         <div id="main">
+
+            <section id="nav-phone" class="main">
+                <header class="">
+                    <h2>Table of Content</h2>
+                </header>
+                <ul>
+                    <li><a href="#abstract" class="active">Abstract</a></li>
+                    <li><a href="#background" class="active">Background</a></li>
+                    <li><a href="#results" class="active">Results</a></li>
+                    <li><a href="https://www.github.com/jtchen0528/cmu-15618-project">Codes</a></li>
+                    <li><a href="/cmu-15618-project/assets/files/proposal.pdf">Proposal</a></li>
+                    <li><a href="/cmu-15618-project/assets/files/final_report.pdf">Final Report</a></li>
+                    <li><a href="/cmu-15618-project/assets/files/poster.pdf">Poster</a></li>
+                </ul>
+            </section>
+
             <section id="abstract" class="main">
-                <div class="spotlight">
+                <div>
                     <div class="content">
                         <header class="major">
                             <h2>Abstract</h2>
                         </header>
-                        <p>Abstract of the project to be commented before mid/final presentation.</p>
+                        <div>
+                            We compared the performance and costs of executing data clustering algorithms on a
+                            multi-core
+                            machine with <strong>PyOMP</strong> and on a set of workers with comparable resource
+                            constraints of AWS instances
+                            with <strong>PySpark</strong>. We analyzed the serial, parallelized, and distributed
+                            implementation of two
+                            clustering algorithms: K-means and DBSCAN, evaluated their trade-off between performance,
+                            financial cost, and different algorithmic strategies. Our implementation showed
+                            <strong>5.41x speedup
+                                with a 6-core CPU</strong>, out-performed NumPy-optimized version by
+                            <strong>1.44x</strong>, and <strong>10.41x speedup with
+                                12-node cloud cluster</strong>.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="background" class="main">
+                <div class="content">
+                    <header class="major">
+                        <h2>Background</h2>
+                    </header>
+                    <div>
+                        <h3>PyOMP</h3>
+                        PyOMP, released by Intel Corp., provides an easy-to-use API that allows
+                        developers to parallelize their Python code with minimal modifications, by adding
+                        OpenMP directives to their code. Built upon Numba, PyOMP offers users an
+                        OpenMP-similar syntax for accessibility. Programs written in C with OpenMP
+                        performs only 2.8% faster than programs in PyOMP. Numba is just-in-time (JIT)
+                        compiler that translates Python into optimized machine code at runtime, just before
+                        execution, providing significant speedups for computationally intensive tasks.
+                        Numba uses LLVM as the backend for its JIT compiler, capable of many
+                        optimization techniques including vectorization, automatic parallelization, and loop
+                        unrolling. Example PyOMP operations are shown in Table 1.
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyomp_ops.png" alt="pyomp_ops" style="max-width: 600px;"> </span>
+                        <h3>PySpark</h3>
+                        PySpark is a Python API for Apache Spark, a distributed computing system
+                        used for big data processing and analytics. Spark is designed to work with large-scale data
+                        processing tasks that require high-speed data processing and distributed
+                        computing capabilities. PySpark provides even more easy-to-use interface for users
+                        to handle data analytic tasks in Python.
+                    </div>
+                </div>
+            </section>
+
+            <section id="results" class="main">
+                <div class="content">
+                    <header class="major">
+                        <h2>Results</h2>
+                    </header>
+                    <div>
+                        <h3>PyOMP</h3>
+                        <h4>Hardware Setup</h4>
+                        We ran the experiments on one of our personal computer with AMD Ryzen5 5600x
+                        as CPU. AMD 5600x has 6 cores (12 threads), maximum clock speed of 4.6 GHz. The
+                        pricing of AMD Ryzen5 5600x is 299 $USD.
+                        <h4>Serial Implementation Analysis</h4>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <span class="image fit" style="text-align: -webkit-center;"><img
+                                        src="assets/files/figs/pyomp_acc.png" alt="pyomp_acc"> </span>
+                            </div>
+                            <div class="col-md-4">
+                                <span class="image fit" style="text-align: -webkit-center;"><img
+                                        src="assets/files/figs/pyomp_cluster.png" alt="pyomp_cluster"
+                                        style="max-width: 600px;"> </span>
+                            </div>
+                        </div>
+                        <h4>Runtime v. nThreads</h4>
+
+                        The runtime for the three stages in k-means are shown in Fig 3. Clustering Data
+                        stage accounts for most of the runtime. This is expected since clustering data points
+                        involves heavy computation on Euclidean distances.
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyomp_runtime.png" alt="pyomp_runtime" style="max-width: 600px;">
+                        </span>
+
+
+                        <h4>Clustering Data Analysis</h4>
+                        In Fig 4a, from 𝑛𝑇ℎ𝑟𝑒𝑎𝑑 = 1 to 6, the speedups increased almost linearly and
+                        reached 4.98x. An interesting phenomenon occurred when 𝑛𝑇ℎ𝑟𝑒𝑎𝑑 = 7 , the
+                        performance decreased but later increased to 5.41x with 𝑛𝑇ℎ𝑟𝑒𝑎𝑑 increased to 12.
+                        The reason is that the chip has 6 cores, each with 2 threads. Synchronizing and
+                        communicating across the cores had less overheads. Threads that shares the resource
+                        in a core has more communication overheads and contentions.
+                        <h4>Atomic Action Analysis</h4>
+                        Atomic Action Analysis
+                        Fig 4b illustrated the speedups of Updating Centroids stage w.r.t. the number of
+                        threads executing. The atomic actions speedups were limited at around 𝟏. 𝟔𝐱 when
+                        𝑛𝑇ℎ𝑟𝑒𝑎𝑑 increases. The atomic operations in each threads contented for execution of
+                        writes to the summarized data points, thus caused the speedup ceiling in the stage.
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyomp_speedup.png" alt="pyomp_speedup"> </span>
+
+                        <h4>Different Optimization Approaches</h4>
+                        In Fig 5, we see that the same program but optimized with NumPy operations
+                        achieves a speedup comparing with plain implementation. Our PyOMP implementation
+                        with 12 threads speedup out-performed the NumPy-optimized program by 1.44x. The
+                        fastest scikit-learn implements has more optimized K-means algorithm with built-in
+                        OpenMP support on multi-threading.
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyomp_optimization.png" alt="pyomp_optimization"
+                                style="max-width: 600px;"> </span>
+
+                        <h4>CPU Utilization Analysis</h4>
+
+                        To better inspect the threads utilization during execution, we logged the CPU clock
+                        rate. For PyOMP parallelized implementation, some logs are shown in Fig 6. As
+                        demonstrated in Fig 6a, there is always 1 core with the clock speed at about 4.5 GHz
+                        due to context swtiching. Fig 6b demonstrated the cores were executing exact same
+                        computation.
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyomp_cpu.png" alt="pyomp_cpu"> </span>
+                        <h4>Conclusion – PyOMP</h4>
+
+                        Our implementation of k-means clustering parallelized with PyOMP achieved
+                        <strong>5.41x speedup on a 6 core, 12 threads CPU</strong>; and <strong>4.98x speedup with 6
+                            cores</strong>. The
+                        speedup out-performed the NumPy-optimized implementation by <strong>1.44x</strong>. We
+                        examined the maximum speedup of <strong>1.6x for atomic operations</strong>. For AMD Ryzen5
+                        5600x, the speedup with over 6 threads declined due to resource sharing within a core.
+                        We inspected the execution of PyOMP on switching context with CPU clock speed.
+
+                        <h3>PySpark</h3>
+                        <h4>Hardware Setup</h4>
+                        We leveraged AWS EC2. t3.large. uses Intel Xeon Platinum 8000 series CPU
+                        with 2 threads per core and clock speed up to 3.0 GHz. Our experiment showed the
+                        maximum clock speed for each executor is 2.5GHz, and the same program runs two
+                        times longer on than the AMD 5600x. For comparison between PyOMP, we took 1
+                        node (with 2 vCPU/threads) as 1 thread in AMD Ryzen5 5600x. The spot instance
+                        price of t3.large is 0.0637 USD/hr on April 16th 2023.
+                        <h4>Runtime v. nThreads</h4>
+
+                        We set up each experiments where 𝑛𝑇ℎ𝑟𝑒𝑎𝑑 is the number of nodes in a
+                        cluster. The dataset were partitioned into 𝑛𝑇ℎ𝑟𝑒𝑎𝑑 ∗ 2 since each node has 2
+                        threads, each with half the clock speed of AMD 5600x. There is a drastic time
+                        difference between PySpark and PyOMP, where a 50 seconds runtime for PyOMP
+                        with 12 threads requires 24 minutes for PySpark with 12 nodes. The execution time
+                        of k-means with PySpark decreased linearly with number of executors. The runtime
+                        includes execution, synchronization, and Spark overheads, which is why the task
+                        took this long.
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyspark_runtime.png" alt="pyspark_runtime"
+                                style="max-width: 600px;"> </span>
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyspark_speedups.png" alt="pyspark_speedups"> </span>
+                        <span class="image fit" style="text-align: -webkit-center;"><img
+                                src="assets/files/figs/pyspark_executor.png" alt="pyspark_runtime"
+                                style="max-width: 600px;"> </span>
+                        <h4>Conclusion - PySpark</h4>
+
+                        Our implementation of k-means clustering parallelized with PySpark achieved
+                        10.41x speedup on a 12-node cluster, with each node having 2 vCPUs, each
+                        having half of the computation power of AMD Ryzen5 5600x. The speedup
+                        increased linearly with respect to the number of node executing. However, due to
+                        the heavy overhead of Spark job and synchronization across nodes, the runtime is
+                        drastically slower than PyOMP implementation of the same code.
+
+                        <h3>Conclusion</h3>
+                        The same workload executed 50.18s with a 299.00 $USD AMD Ryzen5 5600x,
+                        whereas executed 1440s with 13 (with driver node) AWS EC2 t3.large instance total of
+                        0.33 $USD. The two use cases has its suitable scenario, it’s a trade-off between speed
+                        and resource constraints.
+
                     </div>
                 </div>
             </section>
