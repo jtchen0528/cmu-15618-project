@@ -1,3 +1,6 @@
 [submodule "src/cpp/dbscan"]
 	path = src/cpp/dbscan
 	url = https://github.com/navyblue1993/dbscan
+[submodule "src/dbscan"]
+	path = src/dbscan
+	url = https://github.com/navyblue1993/dbscan.git
